@@ -27,7 +27,8 @@ the exact schedule) and on manual `workflow_dispatch` for testing.
 - `data/conferences_db.json` — persistent state from previous runs (dedup +
   history). Git-tracked deliberately, unlike everything in `.tmp/`.
 - Secrets (GitHub Actions secrets in production, `.env` locally):
-  `RESEND_API_KEY`, `EMAIL_TO`.
+  `RESEND_API_KEY`, `EMAIL_TO` (required); `GOOGLE_SERVICE_ACCOUNT_JSON`,
+  `GOOGLE_SHEET_ID` (optional — see README.md's Google Sheet section).
 
 ## Steps (executed by `tools/run_pipeline.py`)
 
@@ -72,12 +73,27 @@ what's intentionally not built yet).
    HTML body and `docs/index.html` (GitHub Pages source), from the shared
    Jinja2 template at `tools/templates/digest.html.j2`.
 
-7. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
+7. **`tools/publish_sheet.py`** *(optional — skips gracefully if
+   `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Publishes a
+   **running archive** to a Google Sheet, distinct from the email/website
+   snapshots: uses `filter_and_rank.all_relevant()` (relevance-filtered but
+   **not** deadline-windowed) so past-deadline conferences stay visible
+   instead of disappearing once their deadline passes. Sorted
+   upcoming-first (soonest deadline first), then past deadlines
+   (most-recently-expired first). Rewrites the whole sheet each run in one
+   batched call (cheap on API quota), but reads the existing `Status`/
+   `Notes` columns first and preserves them keyed by each record's stable
+   `source:source_id` — a user's manual annotations are never overwritten.
+   Auth is a Google Cloud service account (not OAuth), chosen for the same
+   reason as Resend over Gmail SMTP: no human present to handle interactive
+   re-consent on a weekly cron.
+
+8. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
    mode, no domain verification needed). Chosen over Gmail SMTP because CI's
    rotating IPs are a known trigger for Google security holds on unattended
    SMTP logins — a failure mode with no human present to clear it.
 
-8. *(Handled by the GitHub Actions workflow, not the Python pipeline)*:
+9. *(Handled by the GitHub Actions workflow, not the Python pipeline)*:
    commit `data/conferences_db.json` and `docs/` back to `main` so state
    persists across runs and GitHub Pages picks up the update.
 
@@ -112,6 +128,20 @@ occasionally be stale.
   since this workflow commits weekly on success, a *silent* multi-week
   failure compounds into the cron itself going dark with no alert (Phase 2:
   add a failure-notification safety net for this).
+- **The first real digest only returned 6 conferences** from 5 WikiCFP
+  categories/6 keyword queries — widened to 10 categories/15 queries (each
+  category feed is WikiCFP's ~20-item page size, so more categories is a
+  cheap way to surface more distinct candidates), `deadline_window_days`
+  120→180, `min_relevance_score` 0.15→0.10. Got 6→10 with no quality
+  regression. If it's still too sparse, the next lever is Phase 2's second
+  source (Serper.dev), not further loosening these thresholds.
+- **WikiCFP sometimes lists the same conference twice** (a plain listing and
+  an "--EI" Ei-Compendex-indexed variant, seen for real in testing) with
+  slightly different title/category text. `dedupe_and_store.py`'s fuzzy
+  merge originally let whichever copy was processed *last* silently win,
+  even if it had a lower relevance score or fewer matched topics than the
+  one it replaced. Fixed to take `max(scores)` and the *union* of matched
+  topics on merge.
 
 ## Deferred to Phase 2 (not built yet — revisit after a few clean weeks of Phase 1)
 

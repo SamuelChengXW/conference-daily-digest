@@ -23,6 +23,20 @@ def rank(records: list[ConferenceRecord]) -> list[ConferenceRecord]:
     return sorted(records, key=lambda r: r.submission_deadline or "9999-99-99")
 
 
+def _archive_sort_key(record: ConferenceRecord):
+    """Upcoming deadlines first (soonest first), then past deadlines (most
+    recently expired first), then records with no parseable deadline last.
+    Used for the Google Sheet 'living archive' view, where old entries
+    should sink rather than clutter the top of an ascending date sort.
+    """
+    deadline = parse_iso_date(record.submission_deadline)
+    if deadline is None:
+        return (2, 0)
+    if deadline >= today():
+        return (0, deadline.toordinal())
+    return (1, -deadline.toordinal())
+
+
 def run(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict] = None) -> list[ConferenceRecord]:
     config = config or load_config()
     if records is None:
@@ -39,6 +53,22 @@ def run(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict]
         and is_in_window(r, window_days)
     ]
     return rank(filtered)
+
+
+def all_relevant(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict] = None) -> list[ConferenceRecord]:
+    """Like run(), but WITHOUT the deadline window filter — every relevant
+    record ever seen, past or future. This is the feed for the Google Sheet
+    running archive (docs/index.html and the email intentionally stay as
+    this-week snapshots via run()).
+    """
+    config = config or load_config()
+    if records is None:
+        raw = read_json(DB_PATH, default={})
+        records = [ConferenceRecord.from_dict(v) for v in raw.values()]
+
+    min_score = config.get("min_relevance_score", 0.0)
+    filtered = [r for r in records if not r.excluded and r.relevance_score >= min_score]
+    return sorted(filtered, key=_archive_sort_key)
 
 
 if __name__ == "__main__":

@@ -6,9 +6,9 @@ agent/human in the loop when GitHub Actions fires this on a cron schedule,
 so every decision here is fixed in code rather than made live.
 
 Steps: fetch -> normalize -> classify -> dedupe/store -> filter/rank ->
-render -> send email (+ docs/index.html is written as a side effect of
-render, ready to be committed to the repo for GitHub Pages by the calling
-GitHub Actions workflow).
+render -> publish to Google Sheet -> send email (+ docs/index.html is
+written as a side effect of render, ready to be committed to the repo for
+GitHub Pages by the calling GitHub Actions workflow).
 
 Exits non-zero on a hard failure so a broken run shows red in Actions
 instead of silently "succeeding" empty-handed.
@@ -28,6 +28,7 @@ import dedupe_and_store
 import fetch_wikicfp
 import filter_and_rank
 import normalize_records
+import publish_sheet
 import render_digest
 import send_email
 from common import TMP_DIR, load_config
@@ -49,39 +50,44 @@ def main(send: bool = True) -> int:
     try:
         config = load_config()
 
-        log("Step 1/7: fetch_wikicfp")
+        log("Step 1/8: fetch_wikicfp")
         raw = fetch_wikicfp.run(config)
         log(f"  -> {len(raw)} candidate records fetched")
 
-        log("Step 2/7: normalize_records")
+        log("Step 2/8: normalize_records")
         normalized = normalize_records.run(raw)
         log(f"  -> {len(normalized)} records normalized")
 
-        log("Step 3/7: classify_relevance")
+        log("Step 3/8: classify_relevance")
         classified = classify_relevance.run(normalized, config)
         log(f"  -> {len(classified)} records classified")
 
-        log("Step 4/7: dedupe_and_store")
+        log("Step 4/8: dedupe_and_store")
         db_records = dedupe_and_store.run(classified)
         log(f"  -> {len(db_records)} records in persistent DB")
 
-        log("Step 5/7: filter_and_rank")
+        log("Step 5/8: filter_and_rank")
         ranked = filter_and_rank.run(db_records, config)
         log(f"  -> {len(ranked)} records pass filters, within deadline window")
 
-        log("Step 6/7: render_digest")
+        log("Step 6/8: render_digest")
         email_html, site_html = render_digest.run(ranked)
         log("  -> docs/index.html written")
 
+        log("Step 7/8: publish_sheet (running archive, all relevant records incl. past deadlines)")
+        archive_records = filter_and_rank.all_relevant(db_records, config)
+        published = publish_sheet.run(archive_records, config)
+        log(f"  -> Google Sheet published: {published} ({len(archive_records)} rows)")
+
         if send:
-            log("Step 7/7: send_email")
+            log("Step 8/8: send_email")
             sent = send_email.run(email_html, config)
             log(f"  -> email sent: {sent}")
             if not sent:
                 log("WARNING: pipeline completed but email did not send "
                     "(see message above — commonly a missing/invalid RESEND_API_KEY).")
         else:
-            log("Step 7/7: send_email — SKIPPED (--no-email)")
+            log("Step 8/8: send_email — SKIPPED (--no-email)")
 
         log("=== Pipeline completed successfully ===")
         return 0

@@ -4,7 +4,8 @@ A weekly, unattended pipeline that finds conferences and calls for papers
 (CFPs) relevant to an energy-science research focus (renewable/power
 systems, energy storage/materials, energy policy/economics, AI/ML for
 energy, plus adjacent environment/engineering/economics) and delivers them
-by email and a small GitHub Pages website.
+by email, a small GitHub Pages website, and (optionally) a running Google
+Sheet archive you can annotate.
 
 Scope is **global and topic-first** — not restricted by conference location.
 
@@ -57,6 +58,42 @@ involved at run time, since nobody's there to supervise it on a 3am cron.
 That's it — after a clean manual run, the `schedule:` trigger in
 `weekly_digest.yml` (Sundays 17:22 UTC ≈ Mondays ~07:22 JST) takes over.
 
+## Optional: Google Sheet archive
+
+`docs/index.html` and the email are **this-week snapshots** — a conference
+drops off once its deadline passes or it falls out of the relevance/window
+filters, with no record you ever saw it. A Google Sheet fixes that: every
+relevant conference ever found stays as a row (sorted upcoming-first, then
+most-recently-expired), so you can mark a `Status` (e.g. Interested /
+Submitted / Skip) and add `Notes` per row — the pipeline never overwrites
+those two columns on later runs, only the data columns (deadline, score,
+links, etc.).
+
+This step is entirely optional — the pipeline skips it gracefully if unset.
+Setup (one-time, ~5 minutes):
+
+1. Go to [console.cloud.google.com](https://console.cloud.google.com) →
+   create a new project (any name).
+2. In that project, enable the **Google Sheets API**
+   (APIs & Services → Enable APIs and Services → search "Google Sheets API"
+   → Enable).
+3. Create a **service account**: IAM & Admin → Service Accounts → Create
+   Service Account (any name, no roles needed) → Done.
+4. Open that service account → Keys tab → Add Key → Create new key → JSON.
+   This downloads a `.json` file — **keep it private**, it's a credential.
+5. Open the downloaded JSON file and find the `"client_email"` field
+   (looks like `something@your-project.iam.gserviceaccount.com`).
+6. Create a new Google Sheet (any name) at sheets.google.com. Click
+   **Share**, paste that `client_email` address, give it **Editor** access.
+7. Copy the sheet's ID from its URL:
+   `https://docs.google.com/spreadsheets/d/`**`THIS_PART`**`/edit`.
+8. Add two more repo secrets (same place as step 5 above):
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` — paste the **entire contents** of the
+     downloaded JSON file.
+   - `GOOGLE_SHEET_ID` — the ID from step 7.
+9. Re-run the workflow manually — the sheet should populate with a
+   `Conferences` tab.
+
 ## Local development
 
 ```
@@ -82,7 +119,8 @@ Edit [`config/filters.yaml`](config/filters.yaml) — no code changes needed:
   how two false-positive categories were fixed during initial testing).
 - **Missing relevant results?** Add keywords, or lower `min_relevance_score`.
 - **Deadline window too short/long?** Adjust `deadline_window_days` (default
-  120).
+  180 — this only affects the email/website snapshot; the Google Sheet
+  archive, if enabled, always shows everything regardless of this setting).
 - **A specific conference/organizer is low-quality?** Add it to
   `excluded_organizers` or `excluded_keywords`.
 
@@ -101,7 +139,9 @@ docs/           GitHub Pages source (index.html — regenerated every run)
 ## What's deferred (Phase 2)
 
 A secondary search-API source (Serper.dev) for journal/society CFPs
-WikiCFP misses, LLM-based extraction for that messier source, an archive of
-past digests, blocklist refinement, and a failure-notification safety net.
-See the bottom of `workflows/weekly_conference_digest.md` for details —
-worth revisiting once Phase 1 has run cleanly for a couple of weeks.
+WikiCFP misses, LLM-based extraction for that messier source, refined
+predatory-venue blocklisting, and a failure-notification safety net (so a
+silent multi-week breakage doesn't quietly compound into GitHub disabling
+the cron — see `workflows/weekly_conference_digest.md`'s "known edge
+cases" section). Worth revisiting once Phase 1 has run cleanly for a
+couple of weeks.
