@@ -117,7 +117,10 @@ Edit [`config/filters.yaml`](config/filters.yaml) — no code changes needed:
 - **Too much noise from one topic?** Tighten its `keywords` list to more
   specific compound phrases (see the comments in that file — this is exactly
   how two false-positive categories were fixed during initial testing).
-- **Missing relevant results?** Add keywords, or lower `min_relevance_score`.
+- **Missing relevant results?** Add keywords to `topics`, add another entry
+  to `wikicfp_categories` (this accepts arbitrary strings, not just real
+  WikiCFP categories — see the comment above it in the file), or lower
+  `min_relevance_score`.
 - **Deadline window too short/long?** Adjust `deadline_window_days` (default
   180 — this only affects the email/website snapshot; the Google Sheet
   archive, if enabled, always shows everything regardless of this setting).

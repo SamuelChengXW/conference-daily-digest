@@ -40,6 +40,27 @@ def score_keyword_match(record: ConferenceRecord, config: dict) -> tuple[float, 
     return score, matched
 
 
+def apply_region_boost(record: ConferenceRecord, config: dict, base_score: float) -> tuple[float, Optional[str]]:
+    """Give conferences in Malaysia/Southeast Asia a scoring boost so they
+    rank higher in an already-topic-relevant digest — this does NOT rescue
+    an otherwise-irrelevant conference (gated on base_score > 0), since the
+    project's scope is deliberately global/topic-first, not location-
+    restricted. Returns (boosted_score, region_name_or_None).
+    """
+    region_cfg = config.get("region_boost", {})
+    if not region_cfg.get("enabled") or base_score <= 0:
+        return base_score, None
+
+    location = (record.location or "").lower()
+    boost = region_cfg.get("boost", 0.0)
+
+    for region in region_cfg.get("regions", []):
+        if any(kw.lower() in location for kw in region.get("keywords", [])):
+            return min(base_score + boost, 1.0), region["name"]
+
+    return base_score, None
+
+
 def apply_exclusions(record: ConferenceRecord, config: dict) -> tuple[bool, Optional[str]]:
     """Return (excluded, reason)."""
     haystack = f"{record.title} {record.url or ''}".lower()
@@ -57,8 +78,10 @@ def apply_exclusions(record: ConferenceRecord, config: dict) -> tuple[bool, Opti
 
 def classify(record: ConferenceRecord, config: dict) -> ConferenceRecord:
     score, matched = score_keyword_match(record, config)
-    record.relevance_score = round(score, 3)
+    boosted_score, region = apply_region_boost(record, config, score)
+    record.relevance_score = round(boosted_score, 3)
     record.matched_topics = matched
+    record.region_match = region
 
     excluded, reason = apply_exclusions(record, config)
     record.excluded = excluded
@@ -84,4 +107,5 @@ if __name__ == "__main__":
     print(f"Classified {len(records)} records ({len(kept)} not excluded) "
           f"-> .tmp/classified_records.json")
     for r in sorted(kept, key=lambda r: -r.relevance_score)[:5]:
-        print(f"  {r.relevance_score:.2f}  {r.title[:70]}  {r.matched_topics}")
+        region = f" [{r.region_match}]" if r.region_match else ""
+        print(f"  {r.relevance_score:.2f}  {r.title[:70]}{region}  {r.matched_topics}")

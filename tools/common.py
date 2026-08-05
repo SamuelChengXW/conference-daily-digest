@@ -58,6 +58,7 @@ class ConferenceRecord:
     conference_start: Optional[str] = None
     conference_end: Optional[str] = None
     relevance_score: float = 0.0
+    region_match: Optional[str] = None  # e.g. "Malaysia" / "Southeast Asia" if location boost applied
     excluded: bool = False
     exclude_reason: Optional[str] = None
     first_seen: Optional[str] = None

@@ -108,10 +108,26 @@ occasionally be stale.
 
 ## Known edge cases / lessons learned
 
-- **WikiCFp's own keyword search ranks loosely** (a search for "energy
-  storage" surfaced an unrelated media-studies conference first) — don't
-  trust its relevance ordering, only use it for candidate discovery; our own
-  `classify_relevance.py` does the real filtering.
+- **WikiCFP's `?q=` keyword-search RSS endpoint is broken — verified it
+  ignores the query entirely.** `?q=renewable+energy` and `?q=Malaysia`
+  return byte-for-byte the same "latest 50" results. This was originally
+  wired up as a second discovery mechanism alongside `?cat=` category feeds
+  and silently contributed nothing (every query after the first just added
+  already-seen duplicates) — which is *why* widening the category list
+  first (6→10 results) barely moved the needle further on a second pass.
+  Fixed by dropping `?q=` entirely: `?cat=` turns out to accept **any**
+  string, not just WikiCFP's own published categories, and does real
+  substring matching against each listing's tags (confirmed `cat=malaysia`,
+  `cat=energy+security` etc. all filter correctly). So `wikicfp_categories`
+  in `filters.yaml` is now the single discovery lever — for topics,
+  sub-topics, *and* regions alike, just add another string to that one list.
+- **Region ranking boost (not a filter).** Per user request, conferences in
+  Malaysia/Southeast Asia get `region_boost` applied in
+  `classify_relevance.py` — but only on top of an existing topic match
+  (`base_score > 0` gate), so a Malaysia-located conference with zero
+  energy/AI/environment/economics relevance still doesn't appear. This
+  keeps the project's original global/topic-first scope intact while
+  surfacing regional events more prominently within it.
 - **Bare generic keywords cause false positives.** Early testing showed
   plain "machine learning" / "artificial intelligence" matching unrelated AI
   conferences, and bare "sustainability" matching a humanities seminar on

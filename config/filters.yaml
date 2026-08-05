@@ -81,12 +81,21 @@ topics:
       - development economics
       - industrial economics
 
-# WikiCFP category slugs to pull (broad discovery pass — actual relevance
-# filtering happens via the topics/keywords above, this just casts the net).
-# Widened 2026-08 after the first real digest came back with only 6 results —
-# category feeds are ~20 items each (WikiCFP's page size), so more categories
-# = meaningfully more distinct candidates for the same one prefilter pass.
+# Discovery: one WikiCFP `cat=` RSS feed per entry below, deduped by
+# eventid, then relevance-filtered via the topics/keywords above.
+#
+# IMPORTANT — WikiCFP's separate "keyword search" RSS endpoint (`?q=...`)
+# was tried here first and turned out to be broken: verified it returns the
+# identical "latest 50" results regardless of query text, so it silently
+# contributed nothing. `cat=` is different — confirmed it does real
+# substring matching against each listing's tags for ANY string, not just
+# WikiCFP's own published categories (e.g. `cat=malaysia`, `cat=energy
+# security` both return correctly filtered results). So this single list is
+# now the only discovery lever: add topics, sub-topics, AND regions here,
+# all the same way. See tools/fetch_wikicfp.py's module docstring for the
+# full investigation.
 wikicfp_categories:
+  # Core topics
   - energy
   - environment
   - engineering
@@ -97,25 +106,78 @@ wikicfp_categories:
   - sustainability
   - climate change
   - electrical
-
-# Free-text queries run against WikiCFP's keyword-search RSS endpoint
-# (wikicfp.com/cfp/rss?q=...). More targeted than the category feeds.
-wikicfp_keyword_queries:
-  - renewable energy
   - energy storage
-  - energy policy
-  - power systems
-  - machine learning energy
-  - sustainability
-  - hydrogen energy
-  - battery storage
-  - carbon capture
   - smart grid
-  - electric vehicle
   - energy transition
-  - climate policy
+  - green energy
+  - energy security
+  # Energy economics/policy — extra depth per user request (2026-08).
+  - energy economics
+  - energy policy
+  - environmental economics
+  - carbon
+  - electricity market
+  - green finance
+  - hydrogen energy
+  - electric vehicle
   - solar photovoltaic
   - wind power
+  # Malaysia / Southeast Asia — region ranking boost (region_boost below)
+  # applies on top of these, but they're also just a real discovery lever:
+  # a conference tagged "malaysia" won't necessarily also be tagged
+  # "energy", so it needs its own feed to be found at all. Still has to
+  # pass the topic-keyword prefilter to be kept — see region_boost's
+  # comment on staying topic-first, not location-restricted.
+  - malaysia
+  - singapore
+  - thailand
+  - indonesia
+  - vietnam
+  - philippines
+  - southeast asia
+  - asean
+
+# Ranking boost (NOT a filter) for conferences located in Malaysia/Southeast
+# Asia — added 2026-08 per user request. This deliberately does NOT let a
+# location match rescue an otherwise off-topic conference: it only applies
+# on top of an existing topic-keyword match (see
+# classify_relevance.apply_region_boost), so the project stays global/
+# topic-first as originally scoped, just with local/regional events ranked
+# higher within that.
+region_boost:
+  enabled: true
+  boost: 0.20
+  regions:
+    - name: "Malaysia"
+      keywords:
+        - malaysia
+        - kuala lumpur
+        - putrajaya
+        - cyberjaya
+        - penang
+        - johor
+        - selangor
+        - sabah
+        - sarawak
+    - name: "Southeast Asia"
+      keywords:
+        - southeast asia
+        - south east asia
+        - asean
+        - singapore
+        - thailand
+        - bangkok
+        - indonesia
+        - jakarta
+        - vietnam
+        - hanoi
+        - ho chi minh
+        - philippines
+        - manila
+        - brunei
+        - cambodia
+        - laos
+        - myanmar
 
 # Only keep conferences whose submission deadline falls within this many days
 # from today (and is not already in the past). Widened from 120 to 180 (~6

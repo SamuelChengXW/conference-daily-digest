@@ -28,10 +28,12 @@
   .badge-high { background: #ffe0e0; color: #a30000; }
   .badge-medium { background: #fff3d6; color: #8a5a00; }
   .badge-low { background: #e2f3e5; color: #1c6b2e; }
+  .badge-region { background: #e0ecff; color: #1a4b9e; }
   @media (prefers-color-scheme: dark) {
     .badge-high { background: #4a1414; color: #ff9a9a; }
     .badge-medium { background: #4a3a10; color: #ffd27a; }
     .badge-low { background: #16351f; color: #8fe0a3; }
+    .badge-region { background: #16294a; color: #9cbcff; }
   }
   .topics { font-size: 0.82rem; color: #555; }
   .footer-note { margin-top: 2.5em; font-size: 0.82rem; color: #888; }
@@ -47,6 +49,7 @@
 {% for r in records %}
 <div class="card">
   <span class="badge badge-{{ r.urgency }}">{{ r.urgency }} urgency</span>
+  {% if r.region_match %}<span class="badge badge-region">📍 {{ r.region_match }}</span>{% endif %}
   <h2><a href="{{ r.url }}">{{ r.title }}</a></h2>
   <div class="meta-row"><strong>Submission deadline:</strong> {{ r.submission_deadline }}{% if r.notification_date %} &middot; <strong>Notification:</strong> {{ r.notification_date }}{% endif %}</div>
   {% if r.conference_start %}<div class="meta-row"><strong>Conference dates:</strong> {{ r.conference_start }}{% if r.conference_end and r.conference_end != r.conference_start %} to {{ r.conference_end }}{% endif %}</div>{% endif %}

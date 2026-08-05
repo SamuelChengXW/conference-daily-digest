@@ -40,7 +40,7 @@ load_dotenv(PROJECT_ROOT / ".env")
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 HEADERS = [
-    "Title", "Status", "Submission Deadline", "Notification Date",
+    "Title", "Status", "Region", "Submission Deadline", "Notification Date",
     "Conference Start", "Conference End", "Location", "Mode",
     "Matched Topics", "Relevance Score", "Official Link", "Verify (CFP) Link",
     "First Seen", "Last Verified", "Notes", "Source ID",
@@ -98,6 +98,7 @@ def record_to_row(record: ConferenceRecord, preserved: dict[str, dict[str, str]]
     return [
         record.title,
         saved.get("Status", ""),
+        record.region_match or "",
         record.submission_deadline or "",
         record.notification_date or "",
         record.conference_start or "",

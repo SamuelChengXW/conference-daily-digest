@@ -5,11 +5,28 @@ agents with `Crawl-delay: 5`. We respect that with a 5s sleep between every
 HTTP request to wikicfp.com (RSS calls and detail-page calls alike).
 
 Two-stage fetch, to keep total requests per run low:
-  1. RSS feeds (category + keyword queries, config-driven) — cheap, one
-     request per feed, gives title/link/short description for many items.
+  1. RSS feeds (config-driven `wikicfp_categories`) — cheap, one request per
+     feed, gives title/link/short description for many items.
   2. Detail-page fetch — only for items that pass `prefilter_relevant()`,
      since this is where the actual deadline data lives (WikiCFP's RSS
      descriptions don't include submission deadlines).
+
+IMPORTANT (found 2026-08 while investigating why the digest wasn't growing):
+`wikicfp.com/cfp/rss?q=...` — the "keyword search" RSS endpoint — does NOT
+actually filter by query. Verified directly: `?q=renewable+energy` and
+`?q=Malaysia` return byte-for-byte the same 50 "most recent" items regardless
+of query text. It was previously wired up as a second discovery mechanism
+alongside categories and silently contributed nothing beyond the first query
+in the list (every later query's items were all already-seen duplicates).
+`wikicfp.com/cfp/rss?cat=...` does NOT have a fixed taxonomy, though —
+confirmed it accepts arbitrary strings and does real substring matching
+against each listing's tags (e.g. `cat=malaysia`, `cat=green+energy`,
+`cat=energy+security` all return distinct, correctly-filtered results). So
+`cat=` is now the *only* discovery mechanism this module uses — for both
+topics and one-off keywords/regions, just add another entry to
+`wikicfp_categories` in config/filters.yaml, whatever the phrase is. There's
+no need for a real WikiCFP-published category to exist first, and no
+separate keyword-query config key.
 
 Detail pages carry hCalendar/RDFa microformat spans (`v:startDate`,
 `v:summary`, `v:locality`, `dc:source`, ...) which are far more stable to
@@ -51,19 +68,15 @@ def _throttled_get(url: str, timeout: int = 20) -> requests.Response:
 
 
 def fetch_category_rss(category_slug: str) -> list[dict]:
+    """`cat=` does real substring matching against each listing's tags —
+    despite the name, this works fine for arbitrary keywords/regions too
+    (see module docstring), not just WikiCFP's own published categories.
+    """
     url = f"{BASE}/cfp/rss?cat={requests.utils.quote(category_slug)}"
     resp = _throttled_get(url)
     resp.raise_for_status()
     feed = feedparser.parse(resp.content)
     return [_rss_entry_to_raw(e, source_query=f"cat:{category_slug}") for e in feed.entries]
-
-
-def fetch_keyword_rss(query: str) -> list[dict]:
-    url = f"{BASE}/cfp/rss?q={requests.utils.quote(query)}"
-    resp = _throttled_get(url)
-    resp.raise_for_status()
-    feed = feedparser.parse(resp.content)
-    return [_rss_entry_to_raw(e, source_query=f"q:{query}") for e in feed.entries]
 
 
 def _rss_entry_to_raw(entry, source_query: str) -> dict:
@@ -166,9 +179,10 @@ def _iso_date(value: Optional[str]) -> Optional[str]:
 
 
 def run(config: Optional[dict] = None) -> list[dict]:
-    """Full fetch pass: category feeds + keyword feeds, deduped by eventid,
-    prefiltered, then detail-fetched. Writes raw output to .tmp/ for
-    debugging and returns the list of raw records (pre-normalization).
+    """Full fetch pass: one cat= feed per entry in wikicfp_categories,
+    deduped by eventid, prefiltered, then detail-fetched. Writes raw output
+    to .tmp/ for debugging and returns the list of raw records
+    (pre-normalization).
     """
     config = config or load_config()
 
@@ -177,15 +191,6 @@ def run(config: Optional[dict] = None) -> list[dict]:
 
     for cat in config.get("wikicfp_categories", []):
         for item in fetch_category_rss(cat):
-            eid = extract_eventid(item["wikicfp_link"])
-            if not eid or eid in seen_eventids:
-                continue
-            seen_eventids.add(eid)
-            item["eventid"] = eid
-            candidates.append(item)
-
-    for q in config.get("wikicfp_keyword_queries", []):
-        for item in fetch_keyword_rss(q):
             eid = extract_eventid(item["wikicfp_link"])
             if not eid or eid in seen_eventids:
                 continue
