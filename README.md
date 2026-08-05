@@ -1,25 +1,26 @@
 # Conference Daily Digest
 
-A weekly, unattended pipeline that finds conferences and calls for papers
+A daily, unattended pipeline that finds conferences and calls for papers
 (CFPs) relevant to an energy-science research focus (renewable/power
 systems, energy storage/materials, energy policy/economics, AI/ML for
-energy, plus adjacent environment/engineering/economics) and delivers them
-by email, a small GitHub Pages website, and (optionally) a running Google
-Sheet archive you can annotate.
+energy, plus adjacent environment/engineering/economics, with a ranking
+boost for Malaysia/Southeast Asia) and delivers them by email, a small
+GitHub Pages website, and (optionally) an actionable Google Sheet.
 
 Scope is **global and topic-first** — not restricted by conference location.
 
-See [`workflows/weekly_conference_digest.md`](workflows/weekly_conference_digest.md)
+See [`workflows/daily_conference_digest.md`](workflows/daily_conference_digest.md)
 for the full SOP (what each step does, and lessons learned from building it).
 This README is just the setup checklist.
 
 ## How it works, in one line
 
-`.github/workflows/weekly_digest.yml` runs `tools/run_pipeline.py` weekly,
+`.github/workflows/daily_digest.yml` runs `tools/run_pipeline.py` daily,
 which fetches from WikiCFP, scores relevance by keyword against
 [`config/filters.yaml`](config/filters.yaml), dedupes against
 `data/conferences_db.json`, and renders + sends the result — no AI/agent
-involved at run time, since nobody's there to supervise it on a 3am cron.
+involved at run time, since nobody's there to supervise it on an unattended
+cron.
 
 ## One-time setup
 
@@ -51,23 +52,31 @@ involved at run time, since nobody's there to supervise it on a 3am cron.
      anywhere in the repo since it's public — this secret is the only place
      it lives.)
 
-6. **Test it manually before trusting the schedule**: Actions tab → "Weekly
+6. **Test it manually before trusting the schedule**: Actions tab → "Daily
    Conference Digest" → Run workflow. Confirm: the Action run is green, an
    email arrives, and the Pages site (step 2's URL) shows the digest.
 
 That's it — after a clean manual run, the `schedule:` trigger in
-`weekly_digest.yml` (Sundays 17:22 UTC ≈ Mondays ~07:22 JST) takes over.
+`daily_digest.yml` (22:37 UTC daily ≈ 07:37 JST the next day) takes over.
 
-## Optional: Google Sheet archive
+## Optional: Google Sheet (choose/dismiss conferences, track submissions)
 
-`docs/index.html` and the email are **this-week snapshots** — a conference
-drops off once its deadline passes or it falls out of the relevance/window
-filters, with no record you ever saw it. A Google Sheet fixes that: every
-relevant conference ever found stays as a row (sorted upcoming-first, then
-most-recently-expired), so you can mark a `Status` (e.g. Interested /
-Submitted / Skip) and add `Notes` per row — the pipeline never overwrites
-those two columns on later runs, only the data columns (deadline, score,
-links, etc.).
+Two tabs, both auto-managed:
+
+- **Conferences** — the current/upcoming list (same as the email/website).
+  A conference **automatically drops off once its deadline passes** — no
+  manual cleanup. Has a **Status dropdown** per row: Interested / Planned
+  to Submit / In Progress / Submitted / Accepted / Rejected / Dismissed.
+  Set a row to **Dismissed** to permanently hide that conference from the
+  Conferences tab, the website, and the email — not just visually in the
+  Sheet, it stays hidden on every future run too.
+- **Participated** — a permanent log of anything you've ever marked
+  Submitted / Accepted / Rejected, "so I can remember which one I had
+  submitted." Unlike Conferences, rows here are **never** dropped just
+  because the deadline passed.
+
+`Notes` is a free-text column on both tabs for your own reference — never
+overwritten by the pipeline.
 
 This step is entirely optional — the pipeline skips it gracefully if unset.
 Setup (one-time, ~5 minutes):
@@ -83,16 +92,19 @@ Setup (one-time, ~5 minutes):
    This downloads a `.json` file — **keep it private**, it's a credential.
 5. Open the downloaded JSON file and find the `"client_email"` field
    (looks like `something@your-project.iam.gserviceaccount.com`).
-6. Create a new Google Sheet (any name) at sheets.google.com. Click
-   **Share**, paste that `client_email` address, give it **Editor** access.
+6. Create a new Google Sheet (any name) at sheets.google.com, **or use an
+   existing one** (e.g. one already created for you and shared with your
+   account). Click **Share**, paste that `client_email` address, give it
+   **Editor** access.
 7. Copy the sheet's ID from its URL:
    `https://docs.google.com/spreadsheets/d/`**`THIS_PART`**`/edit`.
 8. Add two more repo secrets (same place as step 5 above):
    - `GOOGLE_SERVICE_ACCOUNT_JSON` — paste the **entire contents** of the
      downloaded JSON file.
    - `GOOGLE_SHEET_ID` — the ID from step 7.
-9. Re-run the workflow manually — the sheet should populate with a
-   `Conferences` tab.
+9. Re-run the workflow manually — the sheet should populate with
+   `Conferences` and `Participated` tabs, each with the Status dropdown
+   already applied.
 
 ## Local development
 
@@ -122,10 +134,14 @@ Edit [`config/filters.yaml`](config/filters.yaml) — no code changes needed:
   WikiCFP categories — see the comment above it in the file), or lower
   `min_relevance_score`.
 - **Deadline window too short/long?** Adjust `deadline_window_days` (default
-  180 — this only affects the email/website snapshot; the Google Sheet
-  archive, if enabled, always shows everything regardless of this setting).
+  180) — applies to the email, website, AND the Sheet's Conferences tab (all
+  three always show the same set). The Sheet's Participated tab is the
+  exception: it ignores this setting entirely, by design.
 - **A specific conference/organizer is low-quality?** Add it to
   `excluded_organizers` or `excluded_keywords`.
+- **Want a conference gone for good?** Set its Status to `Dismissed` in the
+  Sheet — see the Google Sheet section above. (No `filters.yaml` equivalent
+  by design — that file is topic-level rules, dismissal is per-conference.)
 
 ## Repo layout
 
@@ -133,18 +149,17 @@ Edit [`config/filters.yaml`](config/filters.yaml) — no code changes needed:
 tools/          Deterministic Python pipeline steps (see docstrings in each file)
 workflows/      The human-readable SOP this pipeline implements
 config/         filters.yaml — the only file you should need to edit regularly
-data/           conferences_db.json — persistent dedup/history state (git-tracked)
+data/           conferences_db.json — persistent dedup/history/status state (git-tracked)
 docs/           GitHub Pages source (index.html — regenerated every run)
 .tmp/           Disposable per-run scratch output, gitignored
-.github/workflows/  The weekly cron
+.github/workflows/  The daily cron
 ```
 
 ## What's deferred (Phase 2)
 
 A secondary search-API source (Serper.dev) for journal/society CFPs
 WikiCFP misses, LLM-based extraction for that messier source, refined
-predatory-venue blocklisting, and a failure-notification safety net (so a
-silent multi-week breakage doesn't quietly compound into GitHub disabling
-the cron — see `workflows/weekly_conference_digest.md`'s "known edge
-cases" section). Worth revisiting once Phase 1 has run cleanly for a
-couple of weeks.
+predatory-venue blocklisting, and a failure-notification safety net —
+see `workflows/daily_conference_digest.md`'s "known edge cases" and
+"deferred" sections. Worth revisiting once Phase 1 has run cleanly for a
+while.

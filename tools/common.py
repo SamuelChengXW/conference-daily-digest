@@ -63,6 +63,14 @@ class ConferenceRecord:
     exclude_reason: Optional[str] = None
     first_seen: Optional[str] = None
     last_verified: Optional[str] = None
+    # User-set via the Google Sheet's Status/Notes columns, synced back into
+    # this persisted record each run by publish_sheet.py (see its
+    # sync_user_fields()) so they survive even if the Sheet is ever lost —
+    # this file, not the Sheet, is the durable source of truth. A
+    # "Dismissed" user_status is what makes filter_and_rank.py permanently
+    # drop a record from the email/website/main Sheet tab going forward.
+    user_status: Optional[str] = None
+    user_notes: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)

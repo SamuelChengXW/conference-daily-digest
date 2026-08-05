@@ -1,23 +1,30 @@
-# Workflow: Weekly Conference & CFP Digest
+# Workflow: Daily Conference & CFP Digest
 
 ## Objective
 
-Every week, find conferences and calls for papers (CFPs) relevant to the
+Every day, find conferences and calls for papers (CFPs) relevant to the
 user's Master's research (energy science — renewable/power systems, energy
 storage/materials, energy policy/economics, AI/ML applied to energy — plus
-adjacent environment/engineering/economics topics), and deliver them as:
+adjacent environment/engineering/economics topics, with a ranking boost for
+Malaysia/Southeast Asia), and deliver them as:
 
 1. An email digest.
 2. An always-current website (GitHub Pages, `docs/index.html`).
+3. A Google Sheet you can act on (optional) — see "Google Sheet" below.
 
 Scope is **global and topic-first, not location-restricted** — paper
 submission isn't limited by the author's location, so we don't filter by
 where the conference is held. Location is shown in each entry purely as
 travel-planning info.
 
+Originally built weekly, switched to daily per user request. Running daily
+against WikiCFP is well within its `robots.txt` politeness terms (the 5s
+`Crawl-delay` is respected either way) — this just means the crawl happens
+7x more often, not more aggressively per-request.
+
 ## Trigger
 
-`.github/workflows/weekly_digest.yml`, on a weekly cron (see that file for
+`.github/workflows/daily_digest.yml`, on a daily cron (see that file for
 the exact schedule) and on manual `workflow_dispatch` for testing.
 
 ## Required inputs
@@ -62,31 +69,41 @@ what's intentionally not built yet).
    (rapidfuzz, threshold 90) as a fallback, **gated by matching year** so
    annual recurrences (e.g. "HEEPS 2026" vs "HEEPS 2027") don't wrongly
    merge. New records get `first_seen` set; existing ones get
-   `last_verified` bumped and their mutable fields refreshed.
+   `last_verified` bumped and their mutable fields refreshed. Deliberately
+   preserves `user_status`/`user_notes` from the existing record on every
+   re-fetch (see "Known edge cases") — a routine daily re-crawl must never
+   silently erase a Status you set in the Sheet.
 
-5. **`tools/filter_and_rank.py`** — Keep records with `relevance_score >=
-   min_relevance_score` and a submission deadline inside
-   `deadline_window_days` (default 120, today or later). Sort by deadline
-   ascending.
-
-6. **`tools/render_digest.py`** — Render the same ranked list into the email
-   HTML body and `docs/index.html` (GitHub Pages source), from the shared
-   Jinja2 template at `tools/templates/digest.html.j2`.
-
-7. **`tools/publish_sheet.py`** *(optional — skips gracefully if
-   `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Publishes a
-   **running archive** to a Google Sheet, distinct from the email/website
-   snapshots: uses `filter_and_rank.all_relevant()` (relevance-filtered but
-   **not** deadline-windowed) so past-deadline conferences stay visible
-   instead of disappearing once their deadline passes. Sorted
-   upcoming-first (soonest deadline first), then past deadlines
-   (most-recently-expired first). Rewrites the whole sheet each run in one
-   batched call (cheap on API quota), but reads the existing `Status`/
-   `Notes` columns first and preserves them keyed by each record's stable
-   `source:source_id` — a user's manual annotations are never overwritten.
+5. **`tools/publish_sheet.py`** *(optional — skips gracefully if
+   `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Runs
+   **before** `filter_and_rank.py` on purpose: it reads whatever Status/
+   Notes are currently in the Sheet's "Conferences" tab and writes them onto
+   the matching records' `user_status`/`user_notes` (then immediately
+   persists that to `data/conferences_db.json`), so a Status you set
+   yesterday — including `Dismissed` — is already in effect for *today's*
+   email/website, not just the Sheet. Publishes two tabs:
+   - **Conferences** — the same windowed, non-expired, non-Dismissed list
+     as the email/website (via `filter_and_rank.run()`). A conference drops
+     off this tab automatically once its deadline passes — no manual
+     cleanup. Has a Status dropdown (data validation): Interested / Planned
+     to Submit / In Progress / Submitted / Accepted / Rejected / Dismissed.
+   - **Participated** — a permanent log of anything ever marked Submitted /
+     Accepted / Rejected. Unlike Conferences, entries here are never
+     dropped just because the deadline passed — "which ones did I actually
+     submit to" needs to survive past its own window.
    Auth is a Google Cloud service account (not OAuth), chosen for the same
    reason as Resend over Gmail SMTP: no human present to handle interactive
-   re-consent on a weekly cron.
+   re-consent on an unattended cron.
+
+6. **`tools/filter_and_rank.py`** — Keep records with `relevance_score >=
+   min_relevance_score`, `user_status != "Dismissed"`, and a submission
+   deadline inside `deadline_window_days` (default 180, today or later).
+   Sort by deadline ascending. Feeds the email, the website, AND the
+   Sheet's Conferences tab — all three are always in sync.
+
+7. **`tools/render_digest.py`** — Render the same ranked list into the email
+   HTML body and `docs/index.html` (GitHub Pages source), from the shared
+   Jinja2 template at `tools/templates/digest.html.j2`.
 
 8. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
    mode, no domain verification needed). Chosen over Gmail SMTP because CI's
@@ -141,9 +158,29 @@ occasionally be stale.
   crons see documented queueing delays); never add a `push` trigger
   alongside the auto-commit step (infinite loop); GitHub auto-disables
   scheduled workflows after 60 days with no commits to the default branch —
-  since this workflow commits weekly on success, a *silent* multi-week
-  failure compounds into the cron itself going dark with no alert (Phase 2:
-  add a failure-notification safety net for this).
+  now a non-issue at daily cadence (was a real risk at weekly). Also: an
+  earlier version of this schedule was documented as "17:22 UTC ≈ 07:22
+  JST" — that arithmetic was simply wrong (17:22 + 9h = 02:22, not 07:22).
+  Caught and fixed when switching to daily; worth double-checking any
+  UTC/local-time comment in a cron file rather than trusting it by eye.
+- **A routine re-fetch must never silently erase a user-set Status.**
+  `dedupe_and_store.upsert()` originally replaced an existing DB record
+  wholesale with the freshly-refetched one on every match — fine for
+  algorithmic fields (deadline, score, topics) but would have wiped
+  `user_status`/`user_notes` back to blank on the next run after you set
+  them, since a fresh WikiCFP fetch has no way to know about those. Fixed
+  by carrying `user_status`/`user_notes` forward from the existing record
+  by default; `publish_sheet.py`'s live Sheet-read (which runs right after,
+  before `filter_and_rank`) remains the real authority if you've since
+  changed something in the Sheet.
+- **"Dismissed" needed to survive the record aging out of the Sheet's
+  Conferences tab entirely.** Since that tab only shows the current window,
+  a dismissed-but-now-expired conference wouldn't be there for
+  `publish_sheet.py` to re-read next run. Handled by persisting
+  `user_status` to `data/conferences_db.json` (not just the Sheet) the
+  moment it's read — the JSON file, not the Sheet, is the durable source of
+  truth, so the dismissal sticks even if that row later disappears from
+  view.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
@@ -159,7 +196,7 @@ occasionally be stale.
   one it replaced. Fixed to take `max(scores)` and the *union* of matched
   topics on merge.
 
-## Deferred to Phase 2 (not built yet — revisit after a few clean weeks of Phase 1)
+## Deferred to Phase 2 (not built yet — revisit after a stretch of clean runs)
 
 - `tools/fetch_search_api.py` (Serper.dev) as a secondary source for
   journal/society CFPs WikiCFP misses.

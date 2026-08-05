@@ -80,6 +80,15 @@ def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
         existing = db[key]
         record.first_seen = existing.first_seen
         record.last_verified = today_iso
+        # A record gets fully rebuilt from scratch by today's fetch, which
+        # has no way to know about a Status/Notes you set in the Sheet on a
+        # previous run — don't let a routine re-fetch silently wipe those.
+        # publish_sheet.sync_user_fields() re-reads the live Sheet right
+        # after this and is the real authority if you've since changed
+        # something there; this is just the floor so a re-fetch is never
+        # destructive on its own.
+        record.user_status = existing.user_status
+        record.user_notes = existing.user_notes
         db[key] = record
         return "updated"
 
@@ -95,6 +104,8 @@ def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
         # relevance score or lose a matched topic the other listing caught.
         record.relevance_score = max(record.relevance_score, existing.relevance_score)
         record.matched_topics = sorted(set(record.matched_topics) | set(existing.matched_topics))
+        record.user_status = existing.user_status
+        record.user_notes = existing.user_notes
         del db[match_key]
         db[key] = record
         return "updated"

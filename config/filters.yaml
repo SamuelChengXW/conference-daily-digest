@@ -1,4 +1,4 @@
-# Filtering/scoring rules for the weekly conference digest.
+# Filtering/scoring rules for the daily conference digest.
 # Edit this file to tune what shows up — no code changes needed.
 #
 # Scope: global, topic-first. We do NOT filter by location — a conference in

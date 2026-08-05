@@ -1,10 +1,14 @@
-name: Weekly Conference Digest
+name: Daily Conference Digest
 
 on:
   # Off-round UTC minute (round-minute crons see documented queueing delays
-  # on GitHub's shared runners). 17:22 UTC Sunday ≈ 07:22 JST Monday.
+  # on GitHub's shared runners). 22:37 UTC ≈ 07:37 JST the next day.
+  # NOTE: an earlier version of this schedule (17:22 UTC) was documented as
+  # "≈07:22 JST" — that math was wrong (17:22 UTC + 9h = 02:22 JST, not
+  # 07:22). Fixed here; double-check with `date -d` before trusting a
+  # UTC/JST comment again.
   schedule:
-    - cron: "22 17 * * SUN"
+    - cron: "37 22 * * *"
   # Manual trigger for testing — always run this once before trusting the
   # schedule (see README.md's setup checklist).
   workflow_dispatch: {}
@@ -16,7 +20,7 @@ permissions:
   contents: write
 
 concurrency:
-  group: weekly-digest
+  group: daily-digest
   cancel-in-progress: false
 
 jobs:
@@ -46,5 +50,5 @@ jobs:
       - name: Commit updated data and site
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
-          commit_message: "Weekly digest run: update conferences_db.json and docs/"
+          commit_message: "Daily digest run: update conferences_db.json and docs/"
           file_pattern: "data/conferences_db.json docs/**"

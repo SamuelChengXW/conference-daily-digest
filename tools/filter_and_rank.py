@@ -50,6 +50,7 @@ def run(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict]
         r for r in records
         if not r.excluded
         and r.relevance_score >= min_score
+        and r.user_status != "Dismissed"
         and is_in_window(r, window_days)
     ]
     return rank(filtered)
@@ -57,9 +58,12 @@ def run(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict]
 
 def all_relevant(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict] = None) -> list[ConferenceRecord]:
     """Like run(), but WITHOUT the deadline window filter — every relevant
-    record ever seen, past or future. This is the feed for the Google Sheet
-    running archive (docs/index.html and the email intentionally stay as
-    this-week snapshots via run()).
+    record ever seen, past or future (still excludes user-Dismissed ones).
+    Not used by the main email/website/Sheet views (those all auto-drop
+    expired deadlines via run(), per user request) — kept as a debug/
+    reporting utility and for tools/publish_sheet.py's "Participated" tab
+    reconciliation, where a record needs to be found even after it's aged
+    out of the current window.
     """
     config = config or load_config()
     if records is None:
@@ -67,7 +71,10 @@ def all_relevant(records: Optional[list[ConferenceRecord]] = None, config: Optio
         records = [ConferenceRecord.from_dict(v) for v in raw.values()]
 
     min_score = config.get("min_relevance_score", 0.0)
-    filtered = [r for r in records if not r.excluded and r.relevance_score >= min_score]
+    filtered = [
+        r for r in records
+        if not r.excluded and r.relevance_score >= min_score and r.user_status != "Dismissed"
+    ]
     return sorted(filtered, key=_archive_sort_key)
 
 
