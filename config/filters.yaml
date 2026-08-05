@@ -83,12 +83,20 @@ topics:
 
 # WikiCFP category slugs to pull (broad discovery pass — actual relevance
 # filtering happens via the topics/keywords above, this just casts the net).
+# Widened 2026-08 after the first real digest came back with only 6 results —
+# category feeds are ~20 items each (WikiCFP's page size), so more categories
+# = meaningfully more distinct candidates for the same one prefilter pass.
 wikicfp_categories:
   - energy
   - environment
   - engineering
   - economics
   - artificial intelligence
+  - power
+  - renewable energy
+  - sustainability
+  - climate change
+  - electrical
 
 # Free-text queries run against WikiCFP's keyword-search RSS endpoint
 # (wikicfp.com/cfp/rss?q=...). More targeted than the category feeds.
@@ -99,14 +107,28 @@ wikicfp_keyword_queries:
   - power systems
   - machine learning energy
   - sustainability
+  - hydrogen energy
+  - battery storage
+  - carbon capture
+  - smart grid
+  - electric vehicle
+  - energy transition
+  - climate policy
+  - solar photovoltaic
+  - wind power
 
 # Only keep conferences whose submission deadline falls within this many days
-# from today (and is not already in the past).
-deadline_window_days: 120
+# from today (and is not already in the past). Widened from 120 to 180 (~6
+# months) — gives more runway for a paper you'd need real prep time for,
+# without going so far out that deadlines are unreliable/provisional.
+deadline_window_days: 180
 
 # Minimum keyword-match score (0-1) to keep a record. Records below this are
-# dropped as noise rather than sent/published.
-min_relevance_score: 0.15
+# dropped as noise rather than sent/published. Lowered from 0.15 so a
+# General-environment/engineering/economics-only match (weight 0.6, scores
+# ~0.10) isn't dropped outright — it'll still rank near the bottom of the
+# digest, just not excluded entirely.
+min_relevance_score: 0.10
 
 # Known low-quality / "conference mill" organizers or keyword patterns to hard
 # exclude regardless of topic match. Seed list — refine as real digests reveal

@@ -88,6 +88,13 @@ def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
         existing = db[match_key]
         record.first_seen = existing.first_seen
         record.last_verified = today_iso
+        # WikiCFP sometimes has the same conference posted twice (e.g. plain
+        # vs. an "--EI" Ei-Compendex-indexing variant) with slightly
+        # different keyword coverage in each listing's title/categories —
+        # don't let picking "whichever we saw second" silently downgrade the
+        # relevance score or lose a matched topic the other listing caught.
+        record.relevance_score = max(record.relevance_score, existing.relevance_score)
+        record.matched_topics = sorted(set(record.matched_topics) | set(existing.matched_topics))
         del db[match_key]
         db[key] = record
         return "updated"

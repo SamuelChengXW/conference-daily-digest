@@ -53,34 +53,6 @@
     "first_seen": "2026-08-05",
     "last_verified": "2026-08-05"
   },
-  "wikicfp:201545": {
-    "source": "wikicfp",
-    "source_id": "201545",
-    "title": "ICESD 2027 : 2027 18th International Conference on Environmental Science and Development (ICESD 2027)",
-    "url": "https://icesd.org/",
-    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201545&copyownerid=13881",
-    "location": "Tokyo, Japan",
-    "mode": "onsite",
-    "topics": [
-      "energy",
-      "environment",
-      "sustainable development",
-      "power"
-    ],
-    "matched_topics": [
-      "Energy policy / economics",
-      "General environment / engineering / economics"
-    ],
-    "submission_deadline": "2026-10-30",
-    "notification_date": null,
-    "conference_start": "2027-03-28",
-    "conference_end": "2027-03-30",
-    "relevance_score": 0.348,
-    "excluded": false,
-    "exclude_reason": null,
-    "first_seen": "2026-08-05",
-    "last_verified": "2026-08-05"
-  },
   "wikicfp:201540": {
     "source": "wikicfp",
     "source_id": "201540",
@@ -138,34 +110,6 @@
     "first_seen": "2026-08-05",
     "last_verified": "2026-08-05"
   },
-  "wikicfp:201233": {
-    "source": "wikicfp",
-    "source_id": "201233",
-    "title": "Springer ICEES 2027 : Springer--2027 The 11th International Conference on Energy and Environmental Science (ICEES 2027)",
-    "url": "http://www.icees.org",
-    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201233&copyownerid=13881",
-    "location": "Nanjing, China",
-    "mode": "onsite",
-    "topics": [
-      "energy",
-      "environment",
-      "sustainable development",
-      "power"
-    ],
-    "matched_topics": [
-      "Energy policy / economics",
-      "General environment / engineering / economics"
-    ],
-    "submission_deadline": "2026-10-10",
-    "notification_date": null,
-    "conference_start": "2027-03-24",
-    "conference_end": "2027-03-26",
-    "relevance_score": 0.348,
-    "excluded": false,
-    "exclude_reason": null,
-    "first_seen": "2026-08-05",
-    "last_verified": "2026-08-05"
-  },
   "wikicfp:195423": {
     "source": "wikicfp",
     "source_id": "195423",
@@ -194,31 +138,6 @@
     "first_seen": "2026-08-05",
     "last_verified": "2026-08-05"
   },
-  "wikicfp:202462": {
-    "source": "wikicfp",
-    "source_id": "202462",
-    "title": "EHSS 2027 : Entangled Histories Seminar Series 2026–2027: Borders and Sustainability across Time and Space & Publication Opportunity",
-    "url": "https://sites.google.com/view/entangledhistories/home",
-    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=202462&copyownerid=199815",
-    "location": "Online",
-    "mode": "online",
-    "topics": [
-      "humanities & cultural studies",
-      "history",
-      "literature",
-      "art history"
-    ],
-    "matched_topics": [],
-    "submission_deadline": "2026-08-31",
-    "notification_date": null,
-    "conference_start": "2026-10-01",
-    "conference_end": "2027-05-31",
-    "relevance_score": 0.0,
-    "excluded": false,
-    "exclude_reason": null,
-    "first_seen": "2026-08-05",
-    "last_verified": "2026-08-05"
-  },
   "wikicfp:199960": {
     "source": "wikicfp",
     "source_id": "199960",
@@ -234,12 +153,429 @@
       "power"
     ],
     "matched_topics": [
-      "Energy policy / economics"
+      "Energy policy / economics",
+      "Renewable energy / power systems"
     ],
     "submission_deadline": "2026-11-10",
     "notification_date": null,
     "conference_start": "2027-04-09",
     "conference_end": "2027-04-11",
+    "relevance_score": 0.435,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201546": {
+    "source": "wikicfp",
+    "source_id": "201546",
+    "title": "ICESD--EI 2027 : 2027 18th International Conference on Environmental Science and Development (ICESD 2027)",
+    "url": "https://icesd.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201546&copyownerid=13881",
+    "location": "Tokyo, Japan",
+    "mode": "onsite",
+    "topics": [
+      "renewable energy",
+      "environmental engineering",
+      "sustainability",
+      "power engineering"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics",
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2026-10-30",
+    "notification_date": null,
+    "conference_start": "2027-03-28",
+    "conference_end": "2027-03-30",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201234": {
+    "source": "wikicfp",
+    "source_id": "201234",
+    "title": "ICEES 2027 : Springer--2027 The 11th International Conference on Energy and Environmental Science (ICEES 2027)",
+    "url": "http://www.icees.org",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201234&copyownerid=13881",
+    "location": "Nanjing, China",
+    "mode": "onsite",
+    "topics": [
+      "renewable energy",
+      "environmental engineering",
+      "sustainability",
+      "power engineering"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics",
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2026-10-10",
+    "notification_date": null,
+    "conference_start": "2027-03-24",
+    "conference_end": "2027-03-26",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:200082": {
+    "source": "wikicfp",
+    "source_id": "200082",
+    "title": "ICSCSD 2026 : International Conference on Smart Computing for Sustainable Development",
+    "url": "https://vit.edu/ICSCSD2026/callpaper.php",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=200082&copyownerid=199216",
+    "location": "Pune",
+    "mode": "onsite",
+    "topics": [
+      "AI",
+      "IOT",
+      "blockchain",
+      "renewable energy"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2026-06-30",
+    "notification_date": "2026-07-30",
+    "conference_start": "2026-11-25",
+    "conference_end": "2026-11-27",
+    "relevance_score": 0.435,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:199599": {
+    "source": "wikicfp",
+    "source_id": "199599",
+    "title": "SDER 2026 : 2026 3rd International Conference on Sustainable Development and Energy Resources",
+    "url": "https://ais.cn/u/FZZbiu",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=199599&copyownerid=163220",
+    "location": "Guangzhou, China",
+    "mode": "onsite",
+    "topics": [
+      "sustainable development",
+      "energy",
+      "renewable energy",
+      "manufacturing"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "Energy policy / economics"
+    ],
+    "submission_deadline": "2026-09-28",
+    "notification_date": null,
+    "conference_start": "2026-11-27",
+    "conference_end": "2026-11-29",
+    "relevance_score": 0.435,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:195078": {
+    "source": "wikicfp",
+    "source_id": "195078",
+    "title": "CIDiER 2026 : CIDiER 2026 – 6th International Conference on Renewable Energy and Energy Systems",
+    "url": "https://cidier.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=195078&copyownerid=198554",
+    "location": "Virtual Conference",
+    "mode": "online",
+    "topics": [
+      "energy",
+      "renewable energy",
+      "sustainability",
+      "artificial intelligence"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "Energy policy / economics"
+    ],
+    "submission_deadline": "2026-06-28",
+    "notification_date": "2026-07-12",
+    "conference_start": "2026-10-29",
+    "conference_end": "2026-10-31",
+    "relevance_score": 0.435,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:194776": {
+    "source": "wikicfp",
+    "source_id": "194776",
+    "title": "ICREE--EI 2026 : 2026 10th International Conference on Renewable Energy and Environment (ICREE 2026)",
+    "url": "https://www.icree.org",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=194776&copyownerid=13881",
+    "location": "Brisbane, Australia",
+    "mode": "onsite",
+    "topics": [
+      "renewable energy",
+      "environmental engineering",
+      "sustainability",
+      "power engineering"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-08-05",
+    "notification_date": null,
+    "conference_start": "2026-11-28",
+    "conference_end": "2026-11-30",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:199519": {
+    "source": "wikicfp",
+    "source_id": "199519",
+    "title": "SASD 2026 : 2026 International Conference on Smart Agriculture and Sustainable Development",
+    "url": "https://www.aischolar.com/conference/sasd2026?invite=wiki",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=199519&copyownerid=182680",
+    "location": "Online",
+    "mode": "online",
+    "topics": [
+      "agriculture",
+      "sustainable development",
+      "crop science",
+      "climate change"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-07-30",
+    "notification_date": null,
+    "conference_start": "2026-08-14",
+    "conference_end": "2026-08-16",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:194149": {
+    "source": "wikicfp",
+    "source_id": "194149",
+    "title": "Subsurface hydrology and climate change 2026 : Call for Book Chapters Wiley-2026 : Subsurface hydrology and climate change",
+    "url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=194149&copyownerid=197879",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=194149&copyownerid=197879",
+    "location": "India",
+    "mode": "onsite",
+    "topics": [
+      "hydrology",
+      "groundwater",
+      "subsurface hydrology",
+      "climate change"
+    ],
+    "matched_topics": [
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-05-20",
+    "notification_date": "2026-04-20",
+    "conference_start": "2026-03-20",
+    "conference_end": "2026-05-20",
+    "relevance_score": 0.13,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:192561": {
+    "source": "wikicfp",
+    "source_id": "192561",
+    "title": "AGSCLIMATE2026 2026 : Annual Global Summit on Earth Science and Climate Change",
+    "url": "https://vividglobalsummits.com/2026/climate-change",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=192561&copyownerid=197351",
+    "location": "Paris, France",
+    "mode": "onsite",
+    "topics": [
+      "earth science",
+      "climate change",
+      "sustainability",
+      "environmental changes"
+    ],
+    "matched_topics": [
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-05-15",
+    "notification_date": "2026-05-18",
+    "conference_start": "2026-05-19",
+    "conference_end": "2026-05-21",
+    "relevance_score": 0.13,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:191755": {
+    "source": "wikicfp",
+    "source_id": "191755",
+    "title": "SDGs 2026 : 3rd Canadian International Conference on Sustainable Development Goals 2026",
+    "url": "https://sdg.uniqueca.com/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=191755&copyownerid=57280",
+    "location": "Toronto, Canada",
+    "mode": "onsite",
+    "topics": [
+      "sustainable development",
+      "climate change",
+      "disaster management",
+      "green innovation"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-08-15",
+    "notification_date": null,
+    "conference_start": "2026-10-17",
+    "conference_end": "2026-10-18",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:185690": {
+    "source": "wikicfp",
+    "source_id": "185690",
+    "title": "SDC 2025 : 11th Sustainable Development Conference",
+    "url": "https://sdconference.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=185690&copyownerid=31491",
+    "location": "Bangkok, Thailand",
+    "mode": "onsite",
+    "topics": [
+      "sustainability",
+      "sustainable development",
+      "renewable energy",
+      "climate change"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2025-05-20",
+    "notification_date": null,
+    "conference_start": "2025-07-15",
+    "conference_end": "2025-07-17",
+    "relevance_score": 0.565,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:184726": {
+    "source": "wikicfp",
+    "source_id": "184726",
+    "title": "ClimateNLP @ ACL 2025 : The 2nd Workshop of Natural Language Processing meets Climate Change",
+    "url": "https://nlp4climate.github.io/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=184726&copyownerid=186629",
+    "location": "Vienna, Austria",
+    "mode": "onsite",
+    "topics": [
+      "NLP",
+      "climate change",
+      "fact checking",
+      "sustainability"
+    ],
+    "matched_topics": [
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2025-03-05",
+    "notification_date": "2025-04-21",
+    "conference_start": "2025-07-31",
+    "conference_end": "2025-07-31",
+    "relevance_score": 0.13,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:181488": {
+    "source": "wikicfp",
+    "source_id": "181488",
+    "title": "AI4CC 2024 : 1st International Workshop on Artificial Intelligence for Climate Change",
+    "url": "https://ai4cc-2024.unibs.it/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=181488&copyownerid=160088",
+    "location": "Bolzano, Italy",
+    "mode": "onsite",
+    "topics": [
+      "artificial intelligence",
+      "climate change",
+      "ai applications"
+    ],
+    "matched_topics": [
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2024-09-22",
+    "notification_date": "2024-10-14",
+    "conference_start": "2024-11-25",
+    "conference_end": "2024-11-26",
+    "relevance_score": 0.13,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:195032": {
+    "source": "wikicfp",
+    "source_id": "195032",
+    "title": "ICREET 2026 : 2026 5th International Conference on Renewable Energy and Electrical Technology",
+    "url": "https://ais.cn/u/MzyYVf",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=195032&copyownerid=163220",
+    "location": "Daqing, China",
+    "mode": "onsite",
+    "topics": [
+      "renewable energy",
+      "electrical",
+      "energy",
+      "power"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2026-06-26",
+    "notification_date": null,
+    "conference_start": "2026-07-10",
+    "conference_end": "2026-07-12",
+    "relevance_score": 0.217,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:194693": {
+    "source": "wikicfp",
+    "source_id": "194693",
+    "title": "ICPEET 2026 : 2026 5th Conference on Power Electronics and Electrical Technology",
+    "url": "https://ais.cn/u/b6reQj",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=194693&copyownerid=163220",
+    "location": "Mianyang, China",
+    "mode": "onsite",
+    "topics": [
+      "power electronics",
+      "electrical",
+      "smart grid",
+      "power"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2026-06-12",
+    "notification_date": null,
+    "conference_start": "2026-06-26",
+    "conference_end": "2026-06-28",
     "relevance_score": 0.217,
     "excluded": false,
     "exclude_reason": null,
