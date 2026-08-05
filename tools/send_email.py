@@ -72,8 +72,14 @@ def send_via_gmail_smtp(html_body: str, subject: str, to_email: str,
 
 def run(html_body: str, config: Optional[dict] = None) -> bool:
     config = config or load_config()
-    to_email = os.environ.get("EMAIL_TO") or config["email"]["to"]
     subject = config["email"]["subject_template"].format(date=today().isoformat())
+
+    to_email = os.environ.get("EMAIL_TO")
+    if not to_email:
+        print("EMAIL_TO not set — skipping send (set it in .env for local runs "
+              "or as a GitHub Actions secret). Deliberately not committed to "
+              "config/filters.yaml since this repo is public.")
+        return False
 
     api_key = os.environ.get("RESEND_API_KEY")
     if not api_key:

@@ -115,8 +115,10 @@ excluded_organizers: []
 excluded_keywords:
   - predatory
 
+# email.to is intentionally NOT set here (this repo is public) — the
+# recipient comes only from the EMAIL_TO secret/env var. See .env.example
+# and README.md's setup checklist.
 email:
-  to: cwq0919@gmail.com
   subject_template: "Conference & CFP Digest — {date}"
 
 # --- Phase 2 (not used yet) ---

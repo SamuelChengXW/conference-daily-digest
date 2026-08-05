@@ -38,16 +38,17 @@ involved at run time, since nobody's there to supervise it on a 3am cron.
 
 4. **Get a Resend API key** (used to send the email — free, no credit card):
    - Sign up at [resend.com](https://resend.com) using **the Gmail address
-     you want the digest sent to** (`cwq0919@gmail.com`). Resend's free
-     sandbox mode can only send to the address you signed up with unless you
-     verify a domain — which this project deliberately avoids needing, since
-     it only ever emails you.
+     you want the digest sent to**. Resend's free sandbox mode can only send
+     to the address you signed up with unless you verify a domain — which
+     this project deliberately avoids needing, since it only ever emails you.
    - Create an API key in the Resend dashboard.
 
 5. **Add repo secrets**: Settings → Secrets and variables → Actions → New
    repository secret:
    - `RESEND_API_KEY` — from step 4.
-   - `EMAIL_TO` — `cwq0919@gmail.com`.
+   - `EMAIL_TO` — the same Gmail address. (Deliberately not committed
+     anywhere in the repo since it's public — this secret is the only place
+     it lives.)
 
 6. **Test it manually before trusting the schedule**: Actions tab → "Weekly
    Conference Digest" → Run workflow. Confirm: the Action run is green, an
