@@ -10,7 +10,7 @@ Malaysia/Southeast Asia), and deliver them as:
 
 1. An email digest.
 2. An always-current website (GitHub Pages, `docs/index.html`).
-3. A Google Sheet you can act on (optional) — see "Google Sheet" below.
+3. A Google Sheet you can act on (optional) — see step 5 under "Steps" below.
 
 Scope is **global and topic-first, not location-restricted** — paper
 submission isn't limited by the author's location, so we don't filter by
