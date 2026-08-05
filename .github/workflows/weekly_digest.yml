@@ -1,0 +1,48 @@
+name: Weekly Conference Digest
+
+on:
+  # Off-round UTC minute (round-minute crons see documented queueing delays
+  # on GitHub's shared runners). 17:22 UTC Sunday ≈ 07:22 JST Monday.
+  schedule:
+    - cron: "22 17 * * SUN"
+  # Manual trigger for testing — always run this once before trusting the
+  # schedule (see README.md's setup checklist).
+  workflow_dispatch: {}
+
+# No `push` trigger: this workflow commits its own output back to `main`,
+# which would create an infinite loop if `push` were also a trigger.
+
+permissions:
+  contents: write
+
+concurrency:
+  group: weekly-digest
+  cancel-in-progress: false
+
+jobs:
+  run-digest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run digest pipeline
+        working-directory: tools
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        run: python run_pipeline.py
+
+      - name: Commit updated data and site
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Weekly digest run: update conferences_db.json and docs/"
+          file_pattern: "data/conferences_db.json docs/**"

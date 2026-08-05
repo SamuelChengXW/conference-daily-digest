@@ -1,0 +1,249 @@
+{
+  "wikicfp:201709": {
+    "source": "wikicfp",
+    "source_id": "201709",
+    "title": "PSCE 2027 : 2027 International Conference on Power Systems and Control Engineering (PSCE 2027)",
+    "url": "https://www.psce.net/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201709&copyownerid=13881",
+    "location": "Hong Kong, China",
+    "mode": "onsite",
+    "topics": [
+      "energy",
+      "engineering",
+      "electrical engineering",
+      "power"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems"
+    ],
+    "submission_deadline": "2027-04-15",
+    "notification_date": null,
+    "conference_start": "2027-08-18",
+    "conference_end": "2027-08-20",
+    "relevance_score": 0.217,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201557": {
+    "source": "wikicfp",
+    "source_id": "201557",
+    "title": "ICHCE & SRIF 2026 : 2026 12th International Conference on Hydraulic and Civil Engineering & the Silk Road International Forum on Deep Underground Energy Storage and Underground Space Development",
+    "url": "https://ais.cn/u/rMnyui",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201557&copyownerid=182680",
+    "location": "Xi'an, China",
+    "mode": "onsite",
+    "topics": [
+      "hydraulic engineering",
+      "civil engineering",
+      "underground engineering",
+      "energy"
+    ],
+    "matched_topics": [
+      "Energy storage / materials"
+    ],
+    "submission_deadline": "2026-08-19",
+    "notification_date": null,
+    "conference_start": "2026-10-16",
+    "conference_end": "2026-10-18",
+    "relevance_score": 0.217,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201545": {
+    "source": "wikicfp",
+    "source_id": "201545",
+    "title": "ICESD 2027 : 2027 18th International Conference on Environmental Science and Development (ICESD 2027)",
+    "url": "https://icesd.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201545&copyownerid=13881",
+    "location": "Tokyo, Japan",
+    "mode": "onsite",
+    "topics": [
+      "energy",
+      "environment",
+      "sustainable development",
+      "power"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-10-30",
+    "notification_date": null,
+    "conference_start": "2027-03-28",
+    "conference_end": "2027-03-30",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201540": {
+    "source": "wikicfp",
+    "source_id": "201540",
+    "title": "AREEE 2027 : 2027 8th Asia Conference on Renewable Energy And Environmental Engineering (AREEE 2027)",
+    "url": "https://www.areee.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201540&copyownerid=13881",
+    "location": "Singapore",
+    "mode": "onsite",
+    "topics": [
+      "energy",
+      "renewable energy",
+      "environment",
+      "sustainable development"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-11-20",
+    "notification_date": null,
+    "conference_start": "2027-04-07",
+    "conference_end": "2027-04-10",
+    "relevance_score": 0.565,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201351": {
+    "source": "wikicfp",
+    "source_id": "201351",
+    "title": "ICEEA 2027 : 2027 17th International Conference on Environmental Engineering and Applications (ICEEA 2027)",
+    "url": "https://www.iceea.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201351&copyownerid=13881",
+    "location": "Nice, France",
+    "mode": "onsite",
+    "topics": [
+      "environment",
+      "agriculture",
+      "sustainable development",
+      "energy"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2027-01-10",
+    "notification_date": null,
+    "conference_start": "2027-05-29",
+    "conference_end": "2027-05-31",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:201233": {
+    "source": "wikicfp",
+    "source_id": "201233",
+    "title": "Springer ICEES 2027 : Springer--2027 The 11th International Conference on Energy and Environmental Science (ICEES 2027)",
+    "url": "http://www.icees.org",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=201233&copyownerid=13881",
+    "location": "Nanjing, China",
+    "mode": "onsite",
+    "topics": [
+      "energy",
+      "environment",
+      "sustainable development",
+      "power"
+    ],
+    "matched_topics": [
+      "Energy policy / economics",
+      "General environment / engineering / economics"
+    ],
+    "submission_deadline": "2026-10-10",
+    "notification_date": null,
+    "conference_start": "2027-03-24",
+    "conference_end": "2027-03-26",
+    "relevance_score": 0.348,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:195423": {
+    "source": "wikicfp",
+    "source_id": "195423",
+    "title": "ICERE 2027 : 2027 13th International Conference on Environment and Renewable Energy (ICERE 2027)",
+    "url": "https://icere.org/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=195423&copyownerid=13881",
+    "location": "Da Nang, Vietnam",
+    "mode": "onsite",
+    "topics": [
+      "environment",
+      "energy",
+      "renewable energy",
+      "sustainable development"
+    ],
+    "matched_topics": [
+      "Renewable energy / power systems",
+      "Energy policy / economics"
+    ],
+    "submission_deadline": "2026-10-20",
+    "notification_date": null,
+    "conference_start": "2027-03-01",
+    "conference_end": "2027-03-04",
+    "relevance_score": 0.435,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:202462": {
+    "source": "wikicfp",
+    "source_id": "202462",
+    "title": "EHSS 2027 : Entangled Histories Seminar Series 2026–2027: Borders and Sustainability across Time and Space & Publication Opportunity",
+    "url": "https://sites.google.com/view/entangledhistories/home",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=202462&copyownerid=199815",
+    "location": "Online",
+    "mode": "online",
+    "topics": [
+      "humanities & cultural studies",
+      "history",
+      "literature",
+      "art history"
+    ],
+    "matched_topics": [],
+    "submission_deadline": "2026-08-31",
+    "notification_date": null,
+    "conference_start": "2026-10-01",
+    "conference_end": "2027-05-31",
+    "relevance_score": 0.0,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  },
+  "wikicfp:199960": {
+    "source": "wikicfp",
+    "source_id": "199960",
+    "title": "ICEEEP 2027 : 2027 11th International Conference on Energy Economics and Energy Policy (ICEEEP 2027)",
+    "url": "https://www.iceeep.com/",
+    "cfp_url": "http://www.wikicfp.com/cfp/servlet/event.showcfp?eventid=199960&copyownerid=13881",
+    "location": "Porto, Portugal",
+    "mode": "onsite",
+    "topics": [
+      "energy",
+      "economics",
+      "sustainable development",
+      "power"
+    ],
+    "matched_topics": [
+      "Energy policy / economics"
+    ],
+    "submission_deadline": "2026-11-10",
+    "notification_date": null,
+    "conference_start": "2027-04-09",
+    "conference_end": "2027-04-11",
+    "relevance_score": 0.217,
+    "excluded": false,
+    "exclude_reason": null,
+    "first_seen": "2026-08-05",
+    "last_verified": "2026-08-05"
+  }
+}
