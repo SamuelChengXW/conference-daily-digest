@@ -58,7 +58,14 @@ class ConferenceRecord:
     conference_start: Optional[str] = None
     conference_end: Optional[str] = None
     relevance_score: float = 0.0
-    region_match: Optional[str] = None  # e.g. "Malaysia" / "Southeast Asia" if location boost applied
+    region_match: Optional[str] = None  # e.g. "Malaysia" / "Southeast Asia" / "Japan" if location boost applied
+    # Broadened carve-out for the dedicated Malaysia Sheet tab only (per user
+    # request): a general AI/CS conference located in Malaysia, independent
+    # of the project's usual energy-topic scoring — never affects the main
+    # email/website/Conferences tab, which stays energy-topic-first.
+    malaysia_ai_match: bool = False
+    fee_info: Optional[str] = None  # best-effort; see classify_relevance/extract_details
+    travel_support_info: Optional[str] = None
     excluded: bool = False
     exclude_reason: Optional[str] = None
     first_seen: Optional[str] = None

@@ -61,6 +61,30 @@ def apply_region_boost(record: ConferenceRecord, config: dict, base_score: float
     return base_score, None
 
 
+def apply_malaysia_ai_carveout(record: ConferenceRecord, config: dict) -> bool:
+    """Broadened AI/CS carve-out for the DEDICATED MALAYSIA SHEET TAB ONLY
+    (per user request) — a general AI/ML/data-science conference located in
+    Malaysia, independent of relevance_score/matched_topics. Deliberately
+    NOT gated on an existing topic match (unlike apply_region_boost) since
+    the whole point is to surface Malaysia AI conferences the energy-topic
+    scoring would otherwise miss entirely. Never affects the main email/
+    website/Conferences tab — see publish_sheet.py's Malaysia tab, which is
+    the only place that reads this flag.
+    """
+    malaysia_keywords = next(
+        (r["keywords"] for r in config.get("region_boost", {}).get("regions", [])
+         if r["name"] == "Malaysia"),
+        [],
+    )
+    haystack = " ".join(
+        [record.title or "", " ".join(record.topics or []), record.location or ""]
+    ).lower()
+
+    is_malaysia = any(kw.lower() in haystack for kw in malaysia_keywords)
+    is_ai = any(kw.lower() in haystack for kw in config.get("malaysia_ai_keywords", []))
+    return is_malaysia and is_ai
+
+
 def apply_exclusions(record: ConferenceRecord, config: dict) -> tuple[bool, Optional[str]]:
     """Return (excluded, reason)."""
     haystack = f"{record.title} {record.url or ''}".lower()
@@ -82,6 +106,7 @@ def classify(record: ConferenceRecord, config: dict) -> ConferenceRecord:
     record.relevance_score = round(boosted_score, 3)
     record.matched_topics = matched
     record.region_match = region
+    record.malaysia_ai_match = apply_malaysia_ai_carveout(record, config)
 
     excluded, reason = apply_exclusions(record, config)
     record.excluded = excluded

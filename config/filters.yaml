@@ -122,9 +122,9 @@ wikicfp_categories:
   - electric vehicle
   - solar photovoltaic
   - wind power
-  # Malaysia / Southeast Asia — region ranking boost (region_boost below)
-  # applies on top of these, but they're also just a real discovery lever:
-  # a conference tagged "malaysia" won't necessarily also be tagged
+  # Malaysia / Southeast Asia / Japan — region ranking boost (region_boost
+  # below) applies on top of these, but they're also just a real discovery
+  # lever: a conference tagged "malaysia" won't necessarily also be tagged
   # "energy", so it needs its own feed to be found at all. Still has to
   # pass the topic-keyword prefilter to be kept — see region_boost's
   # comment on staying topic-first, not location-restricted.
@@ -136,9 +136,14 @@ wikicfp_categories:
   - philippines
   - southeast asia
   - asean
+  - japan
+  - tokyo
+  - osaka
+  - kyoto
 
 # Ranking boost (NOT a filter) for conferences located in Malaysia/Southeast
-# Asia — added 2026-08 per user request. This deliberately does NOT let a
+# Asia/Japan — added 2026-08 per user request (Japan added same day as the
+# user's own upcoming Master's location). This deliberately does NOT let a
 # location match rescue an otherwise off-topic conference: it only applies
 # on top of an existing topic-keyword match (see
 # classify_relevance.apply_region_boost), so the project stays global/
@@ -178,6 +183,41 @@ region_boost:
         - cambodia
         - laos
         - myanmar
+    - name: "Japan"
+      keywords:
+        - japan
+        - tokyo
+        - osaka
+        - kyoto
+        - yokohama
+        - nagoya
+        - fukuoka
+        - sapporo
+        - kobe
+        - hokkaido
+        - kyushu
+
+# Broadened AI/CS carve-out for the DEDICATED MALAYSIA SHEET TAB ONLY (per
+# user request) — general AI/ML/data-science conferences located in
+# Malaysia, independent of the project's usual energy-topic scoring. Never
+# affects the main email/website/Conferences tab (those stay energy-topic-
+# first, as originally scoped) — see classify_relevance.apply_malaysia_ai_carveout
+# and publish_sheet.py's Malaysia tab.
+malaysia_ai_keywords:
+  - artificial intelligence
+  - machine learning
+  - deep learning
+  - data science
+  - computer vision
+  - natural language processing
+  - neural network
+  - big data
+  - data mining
+  - robotics
+  - computer science
+  - data analytics
+  - generative ai
+  - large language model
 
 # Only keep conferences whose submission deadline falls within this many days
 # from today (and is not already in the past). Widened from 120 to 180 (~6

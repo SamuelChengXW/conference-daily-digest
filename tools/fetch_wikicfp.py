@@ -100,12 +100,30 @@ def prefilter_relevant(raw_item: dict, config: dict) -> bool:
     """Cheap keyword gate on the RSS title+description, before spending a
     detail-page request. Any single keyword hit from any configured topic
     is enough to pass — real scoring happens later in classify_relevance.py.
+
+    Also passes anything that looks like a Malaysia-located AI/CS conference
+    (WikiCFP's RSS `description` embeds the location as "[City, Country]",
+    so a Malaysia keyword hit there works even with no energy topic match)
+    — otherwise the dedicated-Malaysia-tab carve-out in classify_relevance.py
+    would never see these records at all, since they'd never make it past
+    this prefilter to get a detail-page fetch in the first place.
     """
     haystack = f"{raw_item['title']} {raw_item['description']}".lower()
     for topic in config.get("topics", []):
         for kw in topic.get("keywords", []):
             if kw.lower() in haystack:
                 return True
+
+    malaysia_keywords = next(
+        (r["keywords"] for r in config.get("region_boost", {}).get("regions", [])
+         if r["name"] == "Malaysia"),
+        [],
+    )
+    is_malaysia = any(kw.lower() in haystack for kw in malaysia_keywords)
+    is_ai = any(kw.lower() in haystack for kw in config.get("malaysia_ai_keywords", []))
+    if is_malaysia and is_ai:
+        return True
+
     return False
 
 

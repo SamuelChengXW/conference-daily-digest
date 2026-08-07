@@ -78,6 +78,34 @@ def all_relevant(records: Optional[list[ConferenceRecord]] = None, config: Optio
     return sorted(filtered, key=_archive_sort_key)
 
 
+def malaysia_tab(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict] = None) -> list[ConferenceRecord]:
+    """Records for the dedicated Malaysia Sheet tab: windowed/not-expired/
+    not-Dismissed like run(), but membership is (region_match == "Malaysia"
+    AND passes the normal min_relevance_score) OR malaysia_ai_match — the
+    latter deliberately bypasses min_relevance_score, since a general AI
+    conference has no reason to score highly against energy-topic keywords.
+    """
+    config = config or load_config()
+    if records is None:
+        raw = read_json(DB_PATH, default={})
+        records = [ConferenceRecord.from_dict(v) for v in raw.values()]
+
+    window_days = config.get("deadline_window_days", 120)
+    min_score = config.get("min_relevance_score", 0.0)
+
+    filtered = [
+        r for r in records
+        if not r.excluded
+        and r.user_status != "Dismissed"
+        and is_in_window(r, window_days)
+        and (
+            r.malaysia_ai_match
+            or (r.region_match == "Malaysia" and r.relevance_score >= min_score)
+        )
+    ]
+    return rank(filtered)
+
+
 if __name__ == "__main__":
     results = run()
     print(f"{len(results)} records pass filters and are within the deadline window:")

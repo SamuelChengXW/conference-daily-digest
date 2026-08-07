@@ -81,12 +81,26 @@ what's intentionally not built yet).
    the matching records' `user_status`/`user_notes` (then immediately
    persists that to `data/conferences_db.json`), so a Status you set
    yesterday — including `Dismissed` — is already in effect for *today's*
-   email/website, not just the Sheet. Publishes two tabs:
+   email/website, not just the Sheet. Reads/reconciles Status+Notes across
+   the Conferences AND Malaysia tabs (`merge_existing_rows()`, Conferences
+   taking priority on conflicts) before writing, since a Malaysia energy
+   conference legitimately appears on both. Publishes three tabs:
    - **Conferences** — the same windowed, non-expired, non-Dismissed list
      as the email/website (via `filter_and_rank.run()`). A conference drops
      off this tab automatically once its deadline passes — no manual
      cleanup. Has a Status dropdown (data validation): Interested / Planned
      to Submit / In Progress / Submitted / Accepted / Rejected / Dismissed.
+   - **Malaysia** *(added per user request)* — every Malaysia-located
+     conference already in Conferences, PLUS a broadened carve-out
+     (`classify_relevance.apply_malaysia_ai_carveout`,
+     `filter_and_rank.malaysia_tab`) of general AI/ML/CS conferences located
+     in Malaysia that the energy-topic scoring would otherwise never surface
+     at all — this carve-out is deliberately NOT gated on any energy
+     relevance, and exists ONLY on this tab, never leaking into
+     Conferences/website/email. Required a `prefilter_relevant()` change in
+     `fetch_wikicfp.py` too: without it, a Malaysia-AI listing with zero
+     energy-topic keywords would never survive the pre-detail-fetch filter
+     to reach classification in the first place.
    - **Participated** — a permanent log of anything ever marked Submitted /
      Accepted / Rejected. Unlike Conferences, entries here are never
      dropped just because the deadline passed — "which ones did I actually
@@ -99,7 +113,8 @@ what's intentionally not built yet).
    min_relevance_score`, `user_status != "Dismissed"`, and a submission
    deadline inside `deadline_window_days` (default 180, today or later).
    Sort by deadline ascending. Feeds the email, the website, AND the
-   Sheet's Conferences tab — all three are always in sync.
+   Sheet's Conferences tab — all three are always in sync. Its
+   `malaysia_tab()` sibling feeds only the Sheet's Malaysia tab (see step 5).
 
 7. **`tools/render_digest.py`** — Render the same ranked list into the email
    HTML body and `docs/index.html` (GitHub Pages source), from the shared
