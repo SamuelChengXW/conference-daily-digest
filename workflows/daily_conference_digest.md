@@ -181,6 +181,17 @@ occasionally be stale.
   moment it's read — the JSON file, not the Sheet, is the durable source of
   truth, so the dismissal sticks even if that row later disappears from
   view.
+- **A downloaded service-account key ended up sitting unignored in the repo
+  root during setup** (named after the GCP project, e.g.
+  `conference-digest-xxxxxxxxxxxx.json` — not a fixed, easily-recognized
+  filename). `git add -A` would have committed a live credential to this
+  public repo. Caught before it happened; `.gitignore` now has patterns for
+  common service-account key filenames as a backstop, and the README calls
+  out deleting the downloaded file after use. `get_or_create_worksheet()`'s
+  first real run against the live Sheet also revealed a leftover `Untitled`
+  tab from the original one-time manual CSV seed (predates the two-tab
+  design) — deleted; worth checking for stray tabs if the Sheet was manually
+  seeded before `publish_sheet.py` ever ran against it.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a

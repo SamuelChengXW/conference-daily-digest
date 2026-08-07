@@ -90,6 +90,11 @@ Setup (one-time, ~5 minutes):
    Service Account (any name, no roles needed) → Done.
 4. Open that service account → Keys tab → Add Key → Create new key → JSON.
    This downloads a `.json` file — **keep it private**, it's a credential.
+   **Don't leave it sitting in this project folder** — this repo is public,
+   and `git add -A` would happily commit it. `.gitignore` here has patterns
+   for common service-account key filenames as a backstop, but the safest
+   move is: use it for step 8 below, then delete the downloaded file (or at
+   least move it well outside the repo).
 5. Open the downloaded JSON file and find the `"client_email"` field
    (looks like `something@your-project.iam.gserviceaccount.com`).
 6. Create a new Google Sheet (any name) at sheets.google.com, **or use an
