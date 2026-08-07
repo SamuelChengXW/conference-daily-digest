@@ -2,6 +2,12 @@
 .env
 credentials.json
 token.json
+# Google Cloud service account keys — these are named after the GCP project
+# (e.g. conference-digest-xxxxxxxxxxxx.json), not a fixed filename, so glob
+# broadly rather than relying on someone remembering the exact name.
+*service-account*.json
+conference-digest-*.json
+*.iam.gserviceaccount.com.json
 
 # Disposable intermediates
 .tmp/*
