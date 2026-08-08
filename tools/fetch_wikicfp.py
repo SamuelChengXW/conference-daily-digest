@@ -32,6 +32,18 @@ Detail pages carry hCalendar/RDFa microformat spans (`v:startDate`,
 `v:summary`, `v:locality`, `dc:source`, ...) which are far more stable to
 parse than the surrounding HTML layout.
 
+IMPORTANT (found 2026-08-08 after a scheduled run crashed the whole pipeline):
+a single `requests.exceptions.ReadTimeout` on ONE detail-page fetch (out of
+~90-100 requests a run makes) propagated all the way up and killed the
+entire ~8-minute run — losing that day's email/Sheet/website update
+entirely over one flaky WikiCFP response. `_throttled_get()` now retries
+transient network errors (timeout/connection errors — NOT 4xx/5xx HTTP
+status, which usually means something real is wrong) with backoff, and
+`fetch_category_rss()`/`fetch_event_detail()` catch remaining failures and
+skip that one category/item (logging a warning) rather than crashing the
+whole run. One bad request should now cost one missing conference, not one
+missing day.
+
 Run standalone for a quick manual check:
     python tools/fetch_wikicfp.py
 """
@@ -50,6 +62,7 @@ from common import CONFIG_PATH, TMP_DIR, load_config, write_json
 BASE = "http://www.wikicfp.com"
 USER_AGENT = "Mozilla/5.0 (compatible; ConferenceDigestBot/1.0; +https://github.com/)"
 CRAWL_DELAY_SECONDS = 5
+MAX_RETRIES = 3
 
 _session = requests.Session()
 _session.headers.update({"User-Agent": USER_AGENT})
@@ -57,24 +70,53 @@ _last_request_time = 0.0
 
 
 def _throttled_get(url: str, timeout: int = 20) -> requests.Response:
-    """GET with a hard floor of CRAWL_DELAY_SECONDS between requests to wikicfp.com."""
+    """GET with a hard floor of CRAWL_DELAY_SECONDS between requests to
+    wikicfp.com, and up to MAX_RETRIES attempts (with backoff) on transient
+    network errors. Raises requests.exceptions.RequestException if every
+    attempt fails — callers decide whether to skip-and-continue or propagate.
+    """
     global _last_request_time
-    elapsed = time.monotonic() - _last_request_time
-    if elapsed < CRAWL_DELAY_SECONDS:
-        time.sleep(CRAWL_DELAY_SECONDS - elapsed)
-    resp = _session.get(url, timeout=timeout)
-    _last_request_time = time.monotonic()
-    return resp
+
+    last_error: Optional[Exception] = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        elapsed = time.monotonic() - _last_request_time
+        if elapsed < CRAWL_DELAY_SECONDS:
+            time.sleep(CRAWL_DELAY_SECONDS - elapsed)
+        try:
+            resp = _session.get(url, timeout=timeout)
+            _last_request_time = time.monotonic()
+            resp.raise_for_status()
+            return resp
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+            _last_request_time = time.monotonic()
+            last_error = e
+            if attempt < MAX_RETRIES:
+                backoff = CRAWL_DELAY_SECONDS * attempt
+                print(f"  [retry {attempt}/{MAX_RETRIES}] {type(e).__name__} on {url} "
+                      f"— retrying in {backoff}s")
+                time.sleep(backoff)
+        except requests.exceptions.HTTPError:
+            # A real 4xx/5xx from the server — retrying won't help, surface it.
+            raise
+
+    raise last_error
 
 
 def fetch_category_rss(category_slug: str) -> list[dict]:
     """`cat=` does real substring matching against each listing's tags —
     despite the name, this works fine for arbitrary keywords/regions too
     (see module docstring), not just WikiCFP's own published categories.
+
+    Returns [] (rather than raising) if every retry fails — one bad
+    category feed shouldn't cost the whole run the other ~35.
     """
     url = f"{BASE}/cfp/rss?cat={requests.utils.quote(category_slug)}"
-    resp = _throttled_get(url)
-    resp.raise_for_status()
+    try:
+        resp = _throttled_get(url)
+    except requests.exceptions.RequestException as e:
+        print(f"  WARNING: giving up on category '{category_slug}' after "
+              f"{MAX_RETRIES} attempts ({type(e).__name__}) — skipping.")
+        return []
     feed = feedparser.parse(resp.content)
     return [_rss_entry_to_raw(e, source_query=f"cat:{category_slug}") for e in feed.entries]
 
@@ -127,15 +169,20 @@ def prefilter_relevant(raw_item: dict, config: dict) -> bool:
     return False
 
 
-def fetch_event_detail(wikicfp_link: str) -> dict:
+def fetch_event_detail(wikicfp_link: str) -> Optional[dict]:
     """Parse a WikiCFP event detail page for structured fields.
 
     Returns a dict with: official_url, location, conference_start,
     conference_end, milestones (dict of milestone-name -> ISO date string),
-    categories (list of str).
+    categories (list of str). Returns None (rather than raising) if every
+    retry fails — the caller skips this one conference and continues.
     """
-    resp = _throttled_get(wikicfp_link)
-    resp.raise_for_status()
+    try:
+        resp = _throttled_get(wikicfp_link)
+    except requests.exceptions.RequestException as e:
+        print(f"  WARNING: giving up on {wikicfp_link} after {MAX_RETRIES} "
+              f"attempts ({type(e).__name__}) — skipping this conference.")
+        return None
     soup = BeautifulSoup(resp.text, "html.parser")
 
     result = {
@@ -221,9 +268,17 @@ def run(config: Optional[dict] = None) -> list[dict]:
     relevant = [c for c in candidates if prefilter_relevant(c, config)]
 
     raw_records = []
+    skipped = 0
     for item in relevant:
         detail = fetch_event_detail(item["wikicfp_link"])
+        if detail is None:
+            skipped += 1
+            continue
         raw_records.append({**item, **detail})
+
+    if skipped:
+        print(f"  ({skipped} conference(s) skipped after repeated fetch failures — "
+              f"they'll simply be picked up on a future run instead)")
 
     write_json(TMP_DIR / "wikicfp_raw_records.json", raw_records)
     return raw_records

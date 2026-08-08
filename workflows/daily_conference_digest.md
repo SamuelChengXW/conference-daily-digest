@@ -207,6 +207,29 @@ occasionally be stale.
   tab from the original one-time manual CSV seed (predates the two-tab
   design) — deleted; worth checking for stray tabs if the Sheet was manually
   seeded before `publish_sheet.py` ever ran against it.
+- **A single flaky WikiCFP response took down an entire scheduled run.**
+  2026-08-07's scheduled run hit a `ReadTimeout` on one out of ~90-100
+  requests (category feeds + detail pages) and the whole pipeline crashed —
+  losing that day's email/Sheet/website update over one transient network
+  blip, not a real bug. `_throttled_get()` now retries transient errors
+  (timeout/connection error — not 4xx/5xx, which usually means something
+  actually wrong) with backoff, and `fetch_category_rss()`/
+  `fetch_event_detail()` catch remaining failures and skip just that one
+  category/conference (logged as a warning) instead of raising. One bad
+  request now costs one missing conference, not one missing day. Worth
+  keeping an eye on `.tmp/pipeline_run.log` / Actions run logs for repeated
+  skip warnings — occasional is normal internet flakiness, frequent would
+  mean something changed on WikiCFP's end.
+- **Gemini API key issue (unresolved as of 2026-08-08).** A user-provided
+  Gemini key authenticates but every model tested — `gemini-2.0-flash`
+  (429, quota `limit: 0`, not "used up"), and every other model including
+  lite variants (`2.5-flash-lite`, `2.0-flash-lite`, `3.1-flash-lite`, etc.
+  — all 404 "not available to new users") — fails. This looks like a
+  Google-side new-project restriction, not a model-choice problem; switching
+  models per the user's own AI Studio suggestions didn't help. Blocks
+  fee/travel/accommodation extraction and turning Serper.dev's unstructured
+  search results into structured records. Needs either the Google Cloud
+  project's billing/verification resolved, or a different LLM provider.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
