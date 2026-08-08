@@ -4,8 +4,11 @@ A daily, unattended pipeline that finds conferences and calls for papers
 (CFPs) relevant to an energy-science research focus (renewable/power
 systems, energy storage/materials, energy policy/economics, AI/ML for
 energy, plus adjacent environment/engineering/economics, with a ranking
-boost for Malaysia/Southeast Asia) and delivers them by email, a small
-GitHub Pages website, and (optionally) an actionable Google Sheet.
+boost for Malaysia/Southeast Asia/Japan) and delivers them by email, a small
+GitHub Pages website, and (optionally) an actionable Google Sheet — with a
+dedicated Malaysia tab (including a broadened general-AI carve-out) fed by
+a Serper.dev + Claude search source, and optional fee/travel/accommodation
+info extracted by Claude from each conference's official page.
 
 Scope is **global and topic-first** — not restricted by conference location.
 
@@ -70,6 +73,12 @@ Two tabs, both auto-managed:
   Set a row to **Dismissed** to permanently hide that conference from the
   Conferences tab, the website, and the email — not just visually in the
   Sheet, it stays hidden on every future run too.
+- **Malaysia** — every Malaysia-located conference already in Conferences,
+  plus a broadened carve-out of general AI/ML/CS conferences located in
+  Malaysia that the energy-topic scoring would otherwise never surface at
+  all (this carve-out only affects this tab — the main Conferences/website/
+  email stay energy-topic-first). Populated by WikiCFP plus the optional
+  Malaysia search source below.
 - **Participated** — a permanent log of anything you've ever marked
   Submitted / Accepted / Rejected, "so I can remember which one I had
   submitted." Unlike Conferences, rows here are **never** dropped just
@@ -108,8 +117,45 @@ Setup (one-time, ~5 minutes):
      downloaded JSON file.
    - `GOOGLE_SHEET_ID` — the ID from step 7.
 9. Re-run the workflow manually — the sheet should populate with
-   `Conferences` and `Participated` tabs, each with the Status dropdown
-   already applied.
+   `Conferences`, `Malaysia`, and `Participated` tabs, each with the Status
+   dropdown already applied.
+
+## Optional: Malaysia search source + fee/travel/accommodation info
+
+Two more integrations, both optional and independent of each other and of
+the Google Sheet above — the pipeline skips whichever secrets are unset:
+
+- **Malaysia search source** (`SERPER_API_KEY` + `ANTHROPIC_API_KEY`) —
+  direct scraping of Malaysian university sites turned out not to be
+  reliable (see `workflows/daily_conference_digest.md`'s "known edge cases"
+  for what was tried and why it didn't work). Instead, targeted Serper.dev
+  searches (`config/filters.yaml`'s `search_api.queries`) find candidate
+  pages, and Claude reads each one to confirm it's a real CFP and extract
+  structured fields — configured to never guess a submission deadline that
+  isn't stated.
+- **Fee/travel/accommodation extraction** (`ANTHROPIC_API_KEY` only) —
+  WikiCFP almost never states whether a conference charges a fee or covers
+  travel for presenters. For each conference not yet checked, Claude reads
+  its official page and extracts only what's actually stated there — runs
+  once per conference (cached via `data/conferences_db.json`), not once per
+  day, so cost scales with new conferences, not the whole archive.
+
+Setup:
+
+1. **Serper.dev** (only needed for the Malaysia search source): sign up
+   free at [serper.dev](https://serper.dev) (no card required), grab an API
+   key from the dashboard.
+2. **Anthropic**: sign up at [console.anthropic.com](https://console.anthropic.com),
+   create an API key under Settings → API Keys. Unlike Resend/Serper this
+   one is pay-as-you-go (no permanent free tier), but both integrations use
+   `claude-opus-5` at `effort: "low"` on small, bounded inputs, and calls
+   are capped (fee/travel: only new conferences; search: `max_queries_per_run`
+   × a few results each) — cost per run is small, but it's not free.
+3. Add repo secrets: `SERPER_API_KEY` and `ANTHROPIC_API_KEY`.
+4. Re-run the workflow manually to confirm both come through — check the
+   Action log for "Google Sheet published" and the Malaysia tab for new
+   rows, and check a Conferences-tab entry for a populated Fee /
+   Travel/Accommodation Support column.
 
 ## Local development
 
@@ -160,11 +206,10 @@ docs/           GitHub Pages source (index.html — regenerated every run)
 .github/workflows/  The daily cron
 ```
 
-## What's deferred (Phase 2)
+## What's deferred
 
-A secondary search-API source (Serper.dev) for journal/society CFPs
-WikiCFP misses, LLM-based extraction for that messier source, refined
-predatory-venue blocklisting, and a failure-notification safety net —
-see `workflows/daily_conference_digest.md`'s "known edge cases" and
-"deferred" sections. Worth revisiting once Phase 1 has run cleanly for a
-while.
+Broadening the Serper.dev search beyond Malaysia to catch journal/society
+CFPs elsewhere that WikiCFP misses, a per-day archive of past digests
+(`docs/archive/YYYY-MM-DD.html`), refined predatory-venue blocklisting, and
+a failure-notification safety net — see `workflows/daily_conference_digest.md`'s
+"known edge cases" and "deferred" sections.

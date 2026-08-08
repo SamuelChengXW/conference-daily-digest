@@ -54,6 +54,8 @@
   <div class="meta-row"><strong>Submission deadline:</strong> {{ r.submission_deadline }}{% if r.notification_date %} &middot; <strong>Notification:</strong> {{ r.notification_date }}{% endif %}</div>
   {% if r.conference_start %}<div class="meta-row"><strong>Conference dates:</strong> {{ r.conference_start }}{% if r.conference_end and r.conference_end != r.conference_start %} to {{ r.conference_end }}{% endif %}</div>{% endif %}
   {% if r.location %}<div class="meta-row"><strong>Location:</strong> {{ r.location }} ({{ r.mode }})</div>{% endif %}
+  {% if r.fee_info %}<div class="meta-row"><strong>Fee:</strong> {{ r.fee_info }}</div>{% endif %}
+  {% if r.travel_support_info %}<div class="meta-row"><strong>Travel/accommodation:</strong> {{ r.travel_support_info }}</div>{% endif %}
   <div class="meta-row topics">Matched topics: {{ r.matched_topics | join(", ") if r.matched_topics else "—" }}</div>
   <div class="meta-row"><a href="{{ r.cfp_url }}">Verify details on official CFP listing &rarr;</a></div>
 </div>

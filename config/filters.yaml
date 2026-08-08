@@ -245,8 +245,21 @@ excluded_keywords:
 email:
   subject_template: "Conference & CFP Digest — {date}"
 
-# --- Phase 2 (not used yet) ---
+# Malaysia university source (Serper.dev search + Claude extraction) — per
+# user request, since direct scraping of UM/UKM/USM/UPM/UTM etc. proved
+# unreliable (see workflows/daily_conference_digest.md's known-edge-cases
+# entry). Skips gracefully if SERPER_API_KEY/ANTHROPIC_API_KEY aren't set,
+# same as every other optional integration in this project — safe to leave
+# enabled: true even before those secrets exist.
 search_api:
-  enabled: false
+  enabled: true
   max_queries_per_run: 8
-  queries: []
+  queries:
+    - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers 2026"
+    - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers energy 2026"
+    - "Universiti Teknologi Malaysia call for papers energy 2026"
+    - "Universiti Malaya call for papers conference 2026"
+    - "Universiti Kebangsaan Malaysia call for papers conference 2026"
+    - "Universiti Sains Malaysia call for papers conference 2026"
+    - "Universiti Putra Malaysia call for papers conference 2026"
+    - "Malaysia artificial intelligence conference 2026 call for papers"

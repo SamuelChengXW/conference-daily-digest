@@ -68,9 +68,10 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 HEADERS = [
     "Title", "Status", "Region", "Submission Deadline", "Notification Date",
-    "Conference Start", "Conference End", "Location", "Mode",
-    "Matched Topics", "Relevance Score", "Official Link", "Verify (CFP) Link",
-    "First Seen", "Last Verified", "Notes", "Source ID",
+    "Conference Start", "Conference End", "Location", "Mode", "Fee",
+    "Travel/Accommodation Support", "Matched Topics", "Relevance Score",
+    "Official Link", "Verify (CFP) Link", "First Seen", "Last Verified",
+    "Notes", "Source ID",
 ]
 STATUS_COL_INDEX = HEADERS.index("Status")  # 0-based
 
@@ -180,6 +181,8 @@ def record_to_row(record: ConferenceRecord) -> list[str]:
         record.conference_end or "",
         record.location or "",
         record.mode,
+        record.fee_info or "",
+        record.travel_support_info or "",
         ", ".join(record.matched_topics),
         f"{record.relevance_score:.2f}",
         record.url or "",

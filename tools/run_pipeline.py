@@ -5,12 +5,13 @@ workflows/daily_conference_digest.md end to end, unattended — there is no
 agent/human in the loop when GitHub Actions fires this on a cron schedule,
 so every decision here is fixed in code rather than made live.
 
-Steps: fetch -> normalize -> classify -> dedupe/store -> publish_sheet
-(reads back any Status/Notes you set in the Sheet, incl. "Dismissed", and
-persists them to data/conferences_db.json BEFORE the next step) ->
-filter/rank -> render -> send email. publish_sheet runs before filter/rank
-specifically so a conference you dismiss today is already gone from
-today's email/website, not just next run's.
+Steps: fetch (WikiCFP + Malaysia search) -> normalize -> classify ->
+dedupe/store -> fee/travel LLM extraction (new records only) ->
+publish_sheet (reads back any Status/Notes you set in the Sheet, incl.
+"Dismissed", and persists them to data/conferences_db.json BEFORE the next
+step) -> filter/rank -> render -> send email. publish_sheet runs before
+filter/rank specifically so a conference you dismiss today is already gone
+from today's email/website, not just next run's.
 
 Exits non-zero on a hard failure so a broken run shows red in Actions
 instead of silently "succeeding" empty-handed.
@@ -27,8 +28,10 @@ from datetime import datetime
 
 import classify_relevance
 import dedupe_and_store
+import fetch_search_api
 import fetch_wikicfp
 import filter_and_rank
+import llm_extract
 import normalize_records
 import publish_sheet
 import render_digest
@@ -52,32 +55,40 @@ def main(send: bool = True) -> int:
     try:
         config = load_config()
 
-        log("Step 1/7: fetch_wikicfp")
+        log("Step 1/9: fetch_wikicfp")
         raw = fetch_wikicfp.run(config)
         log(f"  -> {len(raw)} candidate records fetched")
 
-        log("Step 2/7: normalize_records")
-        normalized = normalize_records.run(raw)
-        log(f"  -> {len(normalized)} records normalized")
+        log("Step 2/9: fetch_search_api (Malaysia university sources via Serper.dev + Claude)")
+        search_records = fetch_search_api.run(config)
+        log(f"  -> {len(search_records)} candidate records found via search")
 
-        log("Step 3/7: classify_relevance")
+        log("Step 3/9: normalize_records")
+        normalized = normalize_records.run(raw) + search_records
+        log(f"  -> {len(normalized)} records normalized (WikiCFP + search combined)")
+
+        log("Step 4/9: classify_relevance")
         classified = classify_relevance.run(normalized, config)
         log(f"  -> {len(classified)} records classified")
 
-        log("Step 4/7: dedupe_and_store")
+        log("Step 5/9: dedupe_and_store")
         db_records = dedupe_and_store.run(classified)
         log(f"  -> {len(db_records)} records in persistent DB")
 
-        log("Step 5/7: publish_sheet (syncs Status/Notes back from the Sheet "
-            "first, incl. Dismissed, then writes Conferences + Participated tabs)")
+        log("Step 6/9: llm_extract (fee/travel info, new records only)")
+        n_extracted = llm_extract.run(db_records)
+        log(f"  -> {n_extracted} record(s) sent for fee/travel extraction")
+
+        log("Step 7/9: publish_sheet (syncs Status/Notes back from the Sheet "
+            "first, incl. Dismissed, then writes Conferences + Malaysia + Participated tabs)")
         published = publish_sheet.run(db_records, config)
         log(f"  -> Google Sheet published: {published}")
 
-        log("Step 6/7: filter_and_rank")
+        log("Step 8/9: filter_and_rank")
         ranked = filter_and_rank.run(db_records, config)
         log(f"  -> {len(ranked)} records pass filters, within deadline window, not dismissed")
 
-        log("Step 7/7: render_digest")
+        log("Step 9/9: render_digest")
         email_html, site_html = render_digest.run(ranked)
         log("  -> docs/index.html written")
 

@@ -35,46 +35,79 @@ the exact schedule) and on manual `workflow_dispatch` for testing.
   history). Git-tracked deliberately, unlike everything in `.tmp/`.
 - Secrets (GitHub Actions secrets in production, `.env` locally):
   `RESEND_API_KEY`, `EMAIL_TO` (required); `GOOGLE_SERVICE_ACCOUNT_JSON`,
-  `GOOGLE_SHEET_ID` (optional — see README.md's Google Sheet section).
+  `GOOGLE_SHEET_ID`, `SERPER_API_KEY`, `ANTHROPIC_API_KEY` (optional — each
+  integration skips gracefully if its own secret(s) are unset).
 
 ## Steps (executed by `tools/run_pipeline.py`)
 
 Because this runs unattended on a schedule — no agent or human present to
 make live judgment calls — every step below is a deterministic Python
-function, not an LLM decision. This is Phase 1: WikiCFP is the only source,
-and relevance scoring is keyword-based (see "Deferred to Phase 2" below for
-what's intentionally not built yet).
+function; the two steps that call an LLM (`fetch_search_api.py`,
+`llm_extract.py`) do so as a bounded, single-purpose API call inside a
+deterministic script, not as an agent making its own decisions about what
+to do next.
 
-1. **`tools/fetch_wikicfp.py`** — Pull WikiCFP category RSS feeds and
-   keyword-search RSS feeds (both configured in `filters.yaml`). Cheaply
-   prefilter on RSS title/description before spending a request on each
-   item's detail page (which has the actual deadline data, via hCalendar
-   microformat spans). Respects WikiCFP's `robots.txt` `Crawl-delay: 5`
-   with a hard 5s sleep between every HTTP request to the site.
+1. **`tools/fetch_wikicfp.py`** — Pull WikiCFP category RSS feeds (both
+   configured in `filters.yaml`). Cheaply prefilter on RSS title/description
+   before spending a request on each item's detail page (which has the
+   actual deadline data, via hCalendar microformat spans). Respects
+   WikiCFP's `robots.txt` `Crawl-delay: 5` with a hard 5s sleep between
+   every HTTP request to the site, and retries transient network errors
+   with backoff before giving up on just that one item (see "Known edge
+   cases").
 
-2. **`tools/normalize_records.py`** — Map raw WikiCFP items into the shared
+2. **`tools/fetch_search_api.py`** *(optional — skips gracefully if
+   `SERPER_API_KEY`/`ANTHROPIC_API_KEY` aren't set)* — Finds Malaysian
+   university conferences (UM/UKM/USM/UPM/UTM etc.) that WikiCFP doesn't
+   index, per user request. Runs targeted Serper.dev search queries
+   (`config/filters.yaml`'s `search_api.queries`, capped at
+   `max_queries_per_run`), then for each result fetches the actual page and
+   has Claude (`claude-opus-5`, `effort: "low"`, structured JSON output)
+   determine whether it's a genuine CFP and extract title/dates/deadline/
+   location/topics — instructed explicitly not to guess a deadline that
+   isn't stated, and to drop the candidate rather than fabricate one.
+   Direct scraping of these sources was investigated and rejected first
+   (see "Known edge cases") — this is the sustainable replacement.
+
+3. **`tools/normalize_records.py`** — Map raw WikiCFP items into the shared
    `ConferenceRecord` schema (`tools/common.py`). Cleans HTML-entity-escaped
    titles, infers `mode` (online/hybrid/onsite) from the location text,
    picks the submission deadline out of WikiCFP's milestone list. Drops any
    record with no extractable submission deadline — can't rank or window-
-   filter something with no deadline.
+   filter something with no deadline. (Search-API records skip this step —
+   Claude's structured extraction already produces clean fields — and are
+   concatenated in directly.)
 
-3. **`tools/classify_relevance.py`** — Deterministic keyword scoring against
+4. **`tools/classify_relevance.py`** — Deterministic keyword scoring against
    `filters.yaml`'s topic list (weighted, normalized to 0–1) plus a hard
    exclusion check (organizer/keyword blocklist for known low-quality
-   "conference mill" listings).
+   "conference mill" listings). Applies uniformly to WikiCFP and
+   search-API-sourced records alike, so region boost / Malaysia-AI carve-out
+   scoring is consistent regardless of source.
 
-4. **`tools/dedupe_and_store.py`** — Merge into `data/conferences_db.json`.
+5. **`tools/dedupe_and_store.py`** — Merge into `data/conferences_db.json`.
    Exact match on WikiCFP's stable `eventid` first; fuzzy title match
    (rapidfuzz, threshold 90) as a fallback, **gated by matching year** so
    annual recurrences (e.g. "HEEPS 2026" vs "HEEPS 2027") don't wrongly
    merge. New records get `first_seen` set; existing ones get
    `last_verified` bumped and their mutable fields refreshed. Deliberately
-   preserves `user_status`/`user_notes` from the existing record on every
-   re-fetch (see "Known edge cases") — a routine daily re-crawl must never
-   silently erase a Status you set in the Sheet.
+   preserves `user_status`/`user_notes` **and `fee_info`/`travel_support_info`**
+   from the existing record on every re-fetch (see "Known edge cases") — a
+   routine daily re-crawl must never silently erase a Status you set in the
+   Sheet, or force a re-paid LLM extraction for a conference already checked.
 
-5. **`tools/publish_sheet.py`** *(optional — skips gracefully if
+6. **`tools/llm_extract.py`** *(optional — skips gracefully if
+   `ANTHROPIC_API_KEY` isn't set)* — Fee/travel/accommodation extraction,
+   per user request: WikiCFP almost never states this, so for records that
+   don't already have `fee_info`/`travel_support_info` set, fetches the
+   conference's official homepage and asks Claude (`claude-opus-5`,
+   `effort: "low"`, structured JSON output) to extract only what the page
+   actually states, with an explicit not-stated fallback rather than
+   guessing. **Only runs for new records** — step 5's field-preservation is
+   what makes that safe — so cost scales with new-conferences-per-day, not
+   total-conferences-per-day.
+
+7. **`tools/publish_sheet.py`** *(optional — skips gracefully if
    `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Runs
    **before** `filter_and_rank.py` on purpose: it reads whatever Status/
    Notes are currently in the Sheet's "Conferences" tab and writes them onto
@@ -109,25 +142,25 @@ what's intentionally not built yet).
    reason as Resend over Gmail SMTP: no human present to handle interactive
    re-consent on an unattended cron.
 
-6. **`tools/filter_and_rank.py`** — Keep records with `relevance_score >=
+8. **`tools/filter_and_rank.py`** — Keep records with `relevance_score >=
    min_relevance_score`, `user_status != "Dismissed"`, and a submission
    deadline inside `deadline_window_days` (default 180, today or later).
    Sort by deadline ascending. Feeds the email, the website, AND the
    Sheet's Conferences tab — all three are always in sync. Its
-   `malaysia_tab()` sibling feeds only the Sheet's Malaysia tab (see step 5).
+   `malaysia_tab()` sibling feeds only the Sheet's Malaysia tab (see step 7).
 
-7. **`tools/render_digest.py`** — Render the same ranked list into the email
+9. **`tools/render_digest.py`** — Render the same ranked list into the email
    HTML body and `docs/index.html` (GitHub Pages source), from the shared
    Jinja2 template at `tools/templates/digest.html.j2`.
 
-8. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
-   mode, no domain verification needed). Chosen over Gmail SMTP because CI's
-   rotating IPs are a known trigger for Google security holds on unattended
-   SMTP logins — a failure mode with no human present to clear it.
+10. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
+    mode, no domain verification needed). Chosen over Gmail SMTP because CI's
+    rotating IPs are a known trigger for Google security holds on unattended
+    SMTP logins — a failure mode with no human present to clear it.
 
-9. *(Handled by the GitHub Actions workflow, not the Python pipeline)*:
-   commit `data/conferences_db.json` and `docs/` back to `main` so state
-   persists across runs and GitHub Pages picks up the update.
+11. *(Handled by the GitHub Actions workflow, not the Python pipeline)*:
+    commit `data/conferences_db.json` and `docs/` back to `main` so state
+    persists across runs and GitHub Pages picks up the update.
 
 ## Output format
 
@@ -220,16 +253,32 @@ occasionally be stale.
   keeping an eye on `.tmp/pipeline_run.log` / Actions run logs for repeated
   skip warnings — occasional is normal internet flakiness, frequent would
   mean something changed on WikiCFP's end.
-- **Gemini API key issue (unresolved as of 2026-08-08).** A user-provided
-  Gemini key authenticates but every model tested — `gemini-2.0-flash`
-  (429, quota `limit: 0`, not "used up"), and every other model including
-  lite variants (`2.5-flash-lite`, `2.0-flash-lite`, `3.1-flash-lite`, etc.
-  — all 404 "not available to new users") — fails. This looks like a
-  Google-side new-project restriction, not a model-choice problem; switching
-  models per the user's own AI Studio suggestions didn't help. Blocks
-  fee/travel/accommodation extraction and turning Serper.dev's unstructured
-  search results into structured records. Needs either the Google Cloud
-  project's billing/verification resolved, or a different LLM provider.
+- **Gemini API key issue → switched provider to Claude (2026-08-08).** A
+  user-provided Gemini key authenticated but every model tested —
+  `gemini-2.0-flash` (429, quota `limit: 0`, not "used up"), and every other
+  model including lite variants (`2.5-flash-lite`, `2.0-flash-lite`,
+  `3.1-flash-lite`, etc. — all 404 "not available to new users") — failed.
+  Read as a Google-side new-project restriction, not a model-choice problem;
+  switching models per the user's own AI Studio suggestions didn't help.
+  Rather than keep debugging a third party's account provisioning, switched
+  `tools/llm_extract.py` and `tools/fetch_search_api.py` to the Claude API
+  (`claude-opus-5`) instead — both were already designed to skip gracefully
+  on a missing/broken key, so this was a provider swap, not a redesign.
+- **Direct scraping of Malaysian university sites (UM/UKM/USM/UPM/UTM) was
+  investigated and rejected before building `fetch_search_api.py`.**
+  Alternative conference aggregators that surfaced these universities'
+  events in search (internationalconferencealerts.com,
+  allconferencealert.com) return 403 on every scripted request — a
+  Cloudflare/bot-challenge unrelated to their permissive `robots.txt`, so
+  not fixable by a polite crawl-delay. The one centralized hub found
+  (`conference.utm.my`) looked promising but its RSS feed is disabled
+  (410) and its visible content turned out to be stale WordPress
+  placeholder entries (2024 dates, generic titles, identical pricing on
+  every listing), not live data. Individual real conferences (verified via
+  search: UTM's InEC2026, APEE2026, UiTM's ICEP2026) exist but are
+  scattered across unrelated domains with no shared structure — one
+  scraper per conference, indefinitely. Serper.dev search + Claude
+  extraction from each result's actual page sidesteps all three problems.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
@@ -245,12 +294,15 @@ occasionally be stale.
   one it replaced. Fixed to take `max(scores)` and the *union* of matched
   topics on merge.
 
-## Deferred to Phase 2 (not built yet — revisit after a stretch of clean runs)
+## Deferred (not built yet — revisit after a stretch of clean runs)
 
-- `tools/fetch_search_api.py` (Serper.dev) as a secondary source for
-  journal/society CFPs WikiCFP misses.
-- LLM-based field extraction (Claude Haiku) for the less-structured
-  search-API results only — WikiCFP stays on deterministic keyword scoring.
+`fetch_search_api.py` (Serper.dev + Claude extraction, Malaysia-focused) and
+`llm_extract.py` (fee/travel/accommodation via Claude) both shipped
+2026-08-08 — no longer deferred, see the Steps section above. Still
+deferred:
+
+- Broadening `fetch_search_api.py`'s search queries beyond Malaysia to
+  catch journal/society CFPs elsewhere that WikiCFP misses.
 - `docs/archive/YYYY-MM-DD.html` history pages.
 - Refined predatory-venue blocklist based on real Phase 1 output.
 - Failure-notification safety net (e.g., open/update a GitHub issue on hard
