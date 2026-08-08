@@ -25,6 +25,7 @@ from __future__ import annotations
 
 import json
 import os
+import time
 from typing import Optional
 
 import requests
@@ -43,6 +44,16 @@ NOT_STATED = "Not stated — check official site"
 MAX_PAGE_CHARS = 6000
 FETCH_TIMEOUT = 15
 REQUEST_TIMEOUT = 30
+
+# Free-tier limits for openai/gpt-oss-20b (console.groq.com/docs/rate-limits):
+# 30 RPM, 8,000 TPM. TPM is the real binding constraint — a single extraction
+# request (page text + instructions + reasoning tokens) typically runs
+# 1,800-2,300 tokens, so only ~3-4 fit per minute. Discovered the hard way:
+# the first live CI run (2026-08-08) fired 53 requests back-to-back with no
+# pacing and nearly all of them 429'd. call_groq() now retries on 429,
+# honoring the Retry-After header.
+MAX_RETRIES = 3
+RATE_LIMIT_DEFAULT_WAIT = 25  # seconds, fallback when Retry-After header is absent
 
 FEE_TRAVEL_INSTRUCTIONS = (
     "Respond with ONLY a JSON object, no other text, matching exactly this shape:\n"
@@ -91,26 +102,45 @@ def fetch_page_text(url: str) -> Optional[str]:
 
 def call_groq(api_key: str, user_content: str) -> Optional[dict]:
     """POST to Groq's chat completions endpoint with JSON-mode enabled.
-    Returns the parsed JSON dict, or None on any failure (network, non-2xx,
-    or malformed JSON in the response) — callers treat that as "couldn't
-    determine, use the not-stated default" rather than raising.
+    Returns the parsed JSON dict, or None on any failure (network, non-2xx
+    after retries exhausted, or malformed JSON in the response) — callers
+    treat that as "couldn't determine, use the not-stated default" rather
+    than raising.
     """
-    try:
-        resp = requests.post(
-            GROQ_URL,
-            headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
-            json={
-                "model": MODEL,
-                "messages": [{"role": "user", "content": user_content}],
-                "response_format": {"type": "json_object"},
-                "temperature": 0.2,
-            },
-            timeout=REQUEST_TIMEOUT,
-        )
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as e:
-        print(f"  WARNING: Groq request failed ({type(e).__name__}) — skipping.")
-        return None
+    resp = None
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.post(
+                GROQ_URL,
+                headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+                json={
+                    "model": MODEL,
+                    "messages": [{"role": "user", "content": user_content}],
+                    "response_format": {"type": "json_object"},
+                    "temperature": 0.2,
+                },
+                timeout=REQUEST_TIMEOUT,
+            )
+        except requests.exceptions.RequestException as e:
+            print(f"  WARNING: Groq request failed ({type(e).__name__}) — skipping.")
+            return None
+
+        if resp.status_code == 429:
+            wait_s = int(resp.headers.get("retry-after", RATE_LIMIT_DEFAULT_WAIT))
+            if attempt < MAX_RETRIES:
+                print(f"  Groq rate-limited (429) — waiting {wait_s}s "
+                      f"(retry {attempt}/{MAX_RETRIES - 1})...")
+                time.sleep(wait_s)
+                continue
+            print(f"  WARNING: Groq still rate-limited after {MAX_RETRIES} attempts — skipping.")
+            return None
+
+        if not resp.ok:
+            print(f"  WARNING: Groq request failed (HTTP {resp.status_code}: "
+                  f"{resp.text[:200]!r}) — skipping.")
+            return None
+
+        break  # success
 
     try:
         content = resp.json()["choices"][0]["message"]["content"]
@@ -138,10 +168,18 @@ def extract_fee_travel_info(record: ConferenceRecord, api_key: str) -> tuple[str
     return data.get("fee_info", NOT_STATED), data.get("travel_support_info", NOT_STATED)
 
 
+MAX_RECORDS_PER_RUN = 30  # keeps one run's worst-case Groq spend bounded (30
+# RPM free-tier limit) even after a large one-time backlog — e.g. the day
+# GROQ_API_KEY is first set against an already-populated DB, every existing
+# record is "pending" at once. Records not reached this run stay fee_info=None
+# (dedupe_and_store carries that forward — see its docstring) and get picked
+# up on a later day, prioritized by nearest deadline below.
+
+
 def run(records: list[ConferenceRecord]) -> int:
     """Populate fee_info/travel_support_info for records that don't have it
-    yet (mutates in place). Returns the number of records actually processed
-    (i.e. that spent a request) so the pipeline log can report it.
+    yet (mutates in place), capped at MAX_RECORDS_PER_RUN per run. Returns
+    the number of records actually attempted this run.
     """
     api_key = get_api_key()
     if not api_key:
@@ -150,6 +188,13 @@ def run(records: list[ConferenceRecord]) -> int:
         return 0
 
     pending = [r for r in records if r.fee_info is None or r.travel_support_info is None]
+    pending.sort(key=lambda r: r.submission_deadline or "9999-99-99")
+    if len(pending) > MAX_RECORDS_PER_RUN:
+        print(f"  {len(pending)} record(s) pending fee/travel extraction — "
+              f"processing the {MAX_RECORDS_PER_RUN} nearest-deadline ones this "
+              f"run, rest carry over to future runs.")
+        pending = pending[:MAX_RECORDS_PER_RUN]
+
     for record in pending:
         fee_info, travel_info = extract_fee_travel_info(record, api_key)
         record.fee_info = fee_info

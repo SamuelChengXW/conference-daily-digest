@@ -270,6 +270,27 @@ occasionally be stale.
   console.groq.com/docs/deprecations first —
   `llama-3.3-70b-versatile`/`llama-3.1-8b-instant` (the obvious first
   choices) retire 2026-08-16, a week after this was built.
+- **Groq free-tier rate limit (8,000 TPM) hit on the first live run with a
+  real key (2026-08-08).** `openai/gpt-oss-20b`'s free tier is 30 RPM but
+  only **8,000 tokens/minute** — the real binding constraint, since one
+  extraction request (page text + instructions + reasoning tokens) runs
+  ~1,800-2,300 tokens, so only ~3-4 fit per minute. The first run with
+  `GROQ_API_KEY` set had a large one-time backlog (every existing DB record
+  had `fee_info=None`) and fired requests back-to-back with no pacing —
+  nearly all 429'd and were silently swallowed by the broad
+  `except RequestException` in the original `call_groq()`, so the run
+  "succeeded" but extracted almost nothing. Fixed in `llm_extract.py`:
+  `call_groq()` now retries on 429 honoring the `Retry-After` header (up to
+  3 attempts), non-2xx failures log the real status code + response body
+  instead of just the exception type name, and `run()` caps a single run at
+  `MAX_RECORDS_PER_RUN = 30` (nearest-deadline first) so a large backlog
+  spreads across a few days instead of hammering the rate limit in one run
+  — records left unprocessed keep `fee_info=None` and are picked up
+  automatically on a later day via `dedupe_and_store.py`'s carry-forward
+  logic. `fetch_search_api.py` shares the same fix since it calls the same
+  `llm_extract.call_groq()`. Verified locally: an artificial 10-record
+  backlog now hits real 429s, retries, and completes with all 10 actually
+  processed (vs. the original 53/53 failure on Actions).
 - **Direct scraping of Malaysian university sites (UM/UKM/USM/UPM/UTM) was
   investigated and rejected before building `fetch_search_api.py`.**
   Alternative conference aggregators that surfaced these universities'
