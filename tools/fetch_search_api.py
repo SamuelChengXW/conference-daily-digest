@@ -1,4 +1,4 @@
-"""Serper.dev search + Claude extraction: finds Malaysian university
+"""Serper.dev search + Groq extraction: finds Malaysian university
 conferences (UM/UKM/USM/UPM/UTM etc.) that WikiCFP doesn't index.
 
 Direct scraping of these sources was investigated and rejected — alternative
@@ -8,12 +8,12 @@ hub found (conference.utm.my) has a dead RSS feed and stale placeholder
 content. This is the sustainable replacement: targeted search queries +
 LLM extraction from each result's actual page content.
 
-Requires SERPER_API_KEY and ANTHROPIC_API_KEY (both GitHub Secrets in
+Requires SERPER_API_KEY and GROQ_API_KEY (both GitHub Secrets in
 production, .env locally). Skips gracefully if either is unset.
 
 Cost/quota discipline: capped at max_queries_per_run queries (config),
 RESULTS_PER_QUERY results examined per query — each examined result costs
-one page fetch + one Claude call, so total Claude spend per run is bounded
+one page fetch + one Groq request, so total Groq spend per run is bounded
 at max_queries_per_run * RESULTS_PER_QUERY calls, worst case.
 
 Run standalone for a quick manual check:
@@ -22,11 +22,9 @@ Run standalone for a quick manual check:
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 from typing import Optional
 
-import anthropic
 import requests
 from dotenv import load_dotenv
 
@@ -37,51 +35,26 @@ load_dotenv(PROJECT_ROOT / ".env")
 
 SERPER_URL = "https://google.serper.dev/search"
 RESULTS_PER_QUERY = 3
-MODEL = "claude-opus-5"
 
-EXTRACTION_SCHEMA = {
-    "type": "object",
-    "properties": {
-        "is_conference_cfp": {
-            "type": "boolean",
-            "description": (
-                "True only if this page is an academic conference, workshop, or "
-                "journal special-issue call for papers with an actual paper "
-                "submission process. False for university news items, general "
-                "event listings, non-academic events, or pages you can't "
-                "confirm are a genuine CFP."
-            ),
-        },
-        "title": {"type": "string", "description": "The conference/CFP name."},
-        "submission_deadline": {
-            "type": ["string", "null"],
-            "description": (
-                "Paper/abstract submission deadline as YYYY-MM-DD. Null if not "
-                "clearly stated in the page text — do not guess or infer a date."
-            ),
-        },
-        "conference_start": {"type": ["string", "null"], "description": "YYYY-MM-DD or null."},
-        "conference_end": {"type": ["string", "null"], "description": "YYYY-MM-DD or null."},
-        "location": {"type": ["string", "null"], "description": "City, country, or 'Online'."},
-        "topics": {
-            "type": "array", "items": {"type": "string"},
-            "description": "Short topic/keyword tags for the conference subject matter.",
-        },
-        "fee_info": {
-            "type": "string",
-            "description": f"Same rules as elsewhere: state only what's in the text, else '{llm_extract.NOT_STATED}'.",
-        },
-        "travel_support_info": {
-            "type": "string",
-            "description": f"Same rules as elsewhere: state only what's in the text, else '{llm_extract.NOT_STATED}'.",
-        },
-    },
-    "required": [
-        "is_conference_cfp", "title", "submission_deadline", "conference_start",
-        "conference_end", "location", "topics", "fee_info", "travel_support_info",
-    ],
-    "additionalProperties": False,
-}
+EXTRACTION_INSTRUCTIONS = (
+    "Respond with ONLY a JSON object, no other text, matching exactly this shape "
+    "(use null for any date/location field you can't determine):\n"
+    '{"is_conference_cfp": <bool>, "title": "<string>", '
+    '"submission_deadline": "<YYYY-MM-DD or null>", '
+    '"conference_start": "<YYYY-MM-DD or null>", "conference_end": "<YYYY-MM-DD or null>", '
+    '"location": "<string or null>", "topics": ["<string>", ...], '
+    '"fee_info": "<string>", "travel_support_info": "<string>"}\n\n'
+    "is_conference_cfp: true ONLY if this page is an academic conference, "
+    "workshop, or journal special-issue call for papers with an actual paper "
+    "submission process. False for university news items, general event "
+    "listings, non-academic events, or pages you can't confirm are a genuine "
+    "CFP. Be conservative — if unsure, false.\n\n"
+    "submission_deadline: the paper/abstract submission deadline as YYYY-MM-DD. "
+    "null if not clearly stated in the page text — do not guess or infer a date.\n\n"
+    f"fee_info / travel_support_info: state only what's in the text, else "
+    f"exactly '{llm_extract.NOT_STATED}'.\n\n"
+    "Do not guess or infer anything not directly stated in the text."
+)
 
 
 def search(query: str, api_key: str) -> list[dict]:
@@ -95,7 +68,7 @@ def search(query: str, api_key: str) -> list[dict]:
     return resp.json().get("organic", [])
 
 
-def extract_conference_record(result: dict, client: anthropic.Anthropic) -> Optional[ConferenceRecord]:
+def extract_conference_record(result: dict, groq_api_key: str) -> Optional[ConferenceRecord]:
     url = result.get("link")
     if not url:
         return None
@@ -104,34 +77,15 @@ def extract_conference_record(result: dict, client: anthropic.Anthropic) -> Opti
     if not page_text:
         return None
 
-    response = client.messages.create(
-        model=MODEL,
-        max_tokens=1024,
-        output_config={
-            "effort": "low",
-            "format": {"type": "json_schema", "schema": EXTRACTION_SCHEMA},
-        },
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Search result title: {result.get('title', '')}\n"
-                f"Search result snippet: {result.get('snippet', '')}\n"
-                f"Page URL: {url}\n"
-                f"Page text (may be incomplete/truncated):\n\n{page_text}\n\n"
-                "Determine whether this is a genuine academic conference/CFP "
-                "page and extract the fields per the schema. Be conservative — "
-                "if you're not confident this is a real CFP with an actual "
-                "submission process, set is_conference_cfp to false."
-            ),
-        }],
+    data = llm_extract.call_groq(
+        groq_api_key,
+        f"Search result title: {result.get('title', '')}\n"
+        f"Search result snippet: {result.get('snippet', '')}\n"
+        f"Page URL: {url}\n"
+        f"Page text (may be incomplete/truncated):\n\n{page_text}\n\n"
+        f"{EXTRACTION_INSTRUCTIONS}",
     )
-    text_block = next((b.text for b in response.content if b.type == "text"), None)
-    if not text_block:
-        return None
-
-    try:
-        data = json.loads(text_block)
-    except json.JSONDecodeError:
+    if not data:
         return None
 
     if not data.get("is_conference_cfp") or not data.get("submission_deadline"):
@@ -142,12 +96,12 @@ def extract_conference_record(result: dict, client: anthropic.Anthropic) -> Opti
     return ConferenceRecord(
         source="search_malaysia",
         source_id=source_id,
-        title=data["title"] or result.get("title", url),
+        title=data.get("title") or result.get("title", url),
         url=url,
         cfp_url=url,  # no separate aggregator detail page for search-sourced records
         location=data.get("location"),
         mode="unknown",
-        topics=data.get("topics", []),
+        topics=data.get("topics", []) or [],
         submission_deadline=data.get("submission_deadline"),
         conference_start=data.get("conference_start"),
         conference_end=data.get("conference_end"),
@@ -167,9 +121,9 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
         return []
 
     serper_key = os.environ.get("SERPER_API_KEY")
-    claude_client = llm_extract.get_client()  # reuses the same ANTHROPIC_API_KEY check
-    if not serper_key or not claude_client:
-        print("SERPER_API_KEY / ANTHROPIC_API_KEY not set — skipping Malaysia search source "
+    groq_key = llm_extract.get_api_key()  # reuses the same GROQ_API_KEY check
+    if not serper_key or not groq_key:
+        print("SERPER_API_KEY / GROQ_API_KEY not set — skipping Malaysia search source "
               "(set both in .env for local runs or as GitHub Actions secrets).")
         return []
 
@@ -190,7 +144,7 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
                 continue
             seen_urls.add(url)
 
-            record = extract_conference_record(result, claude_client)
+            record = extract_conference_record(result, groq_key)
             if record:
                 records.append(record)
 

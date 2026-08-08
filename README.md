@@ -125,33 +125,36 @@ Setup (one-time, ~5 minutes):
 Two more integrations, both optional and independent of each other and of
 the Google Sheet above — the pipeline skips whichever secrets are unset:
 
-- **Malaysia search source** (`SERPER_API_KEY` + `ANTHROPIC_API_KEY`) —
-  direct scraping of Malaysian university sites turned out not to be
-  reliable (see `workflows/daily_conference_digest.md`'s "known edge cases"
-  for what was tried and why it didn't work). Instead, targeted Serper.dev
-  searches (`config/filters.yaml`'s `search_api.queries`) find candidate
-  pages, and Claude reads each one to confirm it's a real CFP and extract
-  structured fields — configured to never guess a submission deadline that
-  isn't stated.
-- **Fee/travel/accommodation extraction** (`ANTHROPIC_API_KEY` only) —
-  WikiCFP almost never states whether a conference charges a fee or covers
-  travel for presenters. For each conference not yet checked, Claude reads
-  its official page and extracts only what's actually stated there — runs
-  once per conference (cached via `data/conferences_db.json`), not once per
-  day, so cost scales with new conferences, not the whole archive.
+- **Malaysia search source** (`SERPER_API_KEY` + `GROQ_API_KEY`) — direct
+  scraping of Malaysian university sites turned out not to be reliable (see
+  `workflows/daily_conference_digest.md`'s "known edge cases" for what was
+  tried and why it didn't work). Instead, targeted Serper.dev searches
+  (`config/filters.yaml`'s `search_api.queries`) find candidate pages, and
+  an LLM reads each one to confirm it's a real CFP and extract structured
+  fields — configured to never guess a submission deadline that isn't
+  stated.
+- **Fee/travel/accommodation extraction** (`GROQ_API_KEY` only) — WikiCFP
+  almost never states whether a conference charges a fee or covers travel
+  for presenters. For each conference not yet checked, the LLM reads its
+  official page and extracts only what's actually stated there — runs once
+  per conference (cached via `data/conferences_db.json`), not once per day,
+  so usage scales with new conferences, not the whole archive.
+
+Both use **Groq's free API** (`tools/llm_extract.py`, `tools/fetch_search_api.py`)
+— Gemini was tried first since it also has a free tier, but the account hit
+a persistent zero-quota restriction unrelated to which key or model was
+used (two separate keys, identical failure — see the workflow doc). Groq's
+free tier doesn't have that problem, and this is simple structured
+extraction well within a mid-size open model's reliable range.
 
 Setup:
 
 1. **Serper.dev** (only needed for the Malaysia search source): sign up
    free at [serper.dev](https://serper.dev) (no card required), grab an API
    key from the dashboard.
-2. **Anthropic**: sign up at [console.anthropic.com](https://console.anthropic.com),
-   create an API key under Settings → API Keys. Unlike Resend/Serper this
-   one is pay-as-you-go (no permanent free tier), but both integrations use
-   `claude-opus-5` at `effort: "low"` on small, bounded inputs, and calls
-   are capped (fee/travel: only new conferences; search: `max_queries_per_run`
-   × a few results each) — cost per run is small, but it's not free.
-3. Add repo secrets: `SERPER_API_KEY` and `ANTHROPIC_API_KEY`.
+2. **Groq**: sign up free at [console.groq.com](https://console.groq.com)
+   (no card required), create an API key under API Keys.
+3. Add repo secrets: `SERPER_API_KEY` and `GROQ_API_KEY`.
 4. Re-run the workflow manually to confirm both come through — check the
    Action log for "Google Sheet published" and the Malaysia tab for new
    rows, and check a Conferences-tab entry for a populated Fee /

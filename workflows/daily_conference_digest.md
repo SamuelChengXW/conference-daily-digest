@@ -35,7 +35,7 @@ the exact schedule) and on manual `workflow_dispatch` for testing.
   history). Git-tracked deliberately, unlike everything in `.tmp/`.
 - Secrets (GitHub Actions secrets in production, `.env` locally):
   `RESEND_API_KEY`, `EMAIL_TO` (required); `GOOGLE_SERVICE_ACCOUNT_JSON`,
-  `GOOGLE_SHEET_ID`, `SERPER_API_KEY`, `ANTHROPIC_API_KEY` (optional — each
+  `GOOGLE_SHEET_ID`, `SERPER_API_KEY`, `GROQ_API_KEY` (optional — each
   integration skips gracefully if its own secret(s) are unset).
 
 ## Steps (executed by `tools/run_pipeline.py`)
@@ -57,17 +57,17 @@ to do next.
    cases").
 
 2. **`tools/fetch_search_api.py`** *(optional — skips gracefully if
-   `SERPER_API_KEY`/`ANTHROPIC_API_KEY` aren't set)* — Finds Malaysian
+   `SERPER_API_KEY`/`GROQ_API_KEY` aren't set)* — Finds Malaysian
    university conferences (UM/UKM/USM/UPM/UTM etc.) that WikiCFP doesn't
    index, per user request. Runs targeted Serper.dev search queries
    (`config/filters.yaml`'s `search_api.queries`, capped at
    `max_queries_per_run`), then for each result fetches the actual page and
-   has Claude (`claude-opus-5`, `effort: "low"`, structured JSON output)
-   determine whether it's a genuine CFP and extract title/dates/deadline/
-   location/topics — instructed explicitly not to guess a deadline that
-   isn't stated, and to drop the candidate rather than fabricate one.
-   Direct scraping of these sources was investigated and rejected first
-   (see "Known edge cases") — this is the sustainable replacement.
+   asks Groq (`openai/gpt-oss-20b`, JSON mode) to determine whether it's a
+   genuine CFP and extract title/dates/deadline/location/topics —
+   instructed explicitly not to guess a deadline that isn't stated, and to
+   drop the candidate rather than fabricate one. Direct scraping of these
+   sources was investigated and rejected first (see "Known edge cases") —
+   this is the sustainable replacement.
 
 3. **`tools/normalize_records.py`** — Map raw WikiCFP items into the shared
    `ConferenceRecord` schema (`tools/common.py`). Cleans HTML-entity-escaped
@@ -75,7 +75,7 @@ to do next.
    picks the submission deadline out of WikiCFP's milestone list. Drops any
    record with no extractable submission deadline — can't rank or window-
    filter something with no deadline. (Search-API records skip this step —
-   Claude's structured extraction already produces clean fields — and are
+   the LLM's structured extraction already produces clean fields — and are
    concatenated in directly.)
 
 4. **`tools/classify_relevance.py`** — Deterministic keyword scoring against
@@ -94,18 +94,17 @@ to do next.
    preserves `user_status`/`user_notes` **and `fee_info`/`travel_support_info`**
    from the existing record on every re-fetch (see "Known edge cases") — a
    routine daily re-crawl must never silently erase a Status you set in the
-   Sheet, or force a re-paid LLM extraction for a conference already checked.
+   Sheet, or force a re-run LLM extraction for a conference already checked.
 
 6. **`tools/llm_extract.py`** *(optional — skips gracefully if
-   `ANTHROPIC_API_KEY` isn't set)* — Fee/travel/accommodation extraction,
-   per user request: WikiCFP almost never states this, so for records that
+   `GROQ_API_KEY` isn't set)* — Fee/travel/accommodation extraction, per
+   user request: WikiCFP almost never states this, so for records that
    don't already have `fee_info`/`travel_support_info` set, fetches the
-   conference's official homepage and asks Claude (`claude-opus-5`,
-   `effort: "low"`, structured JSON output) to extract only what the page
-   actually states, with an explicit not-stated fallback rather than
-   guessing. **Only runs for new records** — step 5's field-preservation is
-   what makes that safe — so cost scales with new-conferences-per-day, not
-   total-conferences-per-day.
+   conference's official homepage and asks Groq (`openai/gpt-oss-20b`, JSON
+   mode) to extract only what the page actually states, with an explicit
+   not-stated fallback rather than guessing. **Only runs for new records**
+   — step 5's field-preservation is what makes that safe — so usage scales
+   with new-conferences-per-day, not total-conferences-per-day.
 
 7. **`tools/publish_sheet.py`** *(optional — skips gracefully if
    `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Runs
@@ -253,17 +252,24 @@ occasionally be stale.
   keeping an eye on `.tmp/pipeline_run.log` / Actions run logs for repeated
   skip warnings — occasional is normal internet flakiness, frequent would
   mean something changed on WikiCFP's end.
-- **Gemini API key issue → switched provider to Claude (2026-08-08).** A
-  user-provided Gemini key authenticated but every model tested —
+- **Gemini API key issue → tried Claude → landed on Groq (2026-08-08).**
+  A user-provided Gemini key authenticated but every model tested —
   `gemini-2.0-flash` (429, quota `limit: 0`, not "used up"), and every other
   model including lite variants (`2.5-flash-lite`, `2.0-flash-lite`,
   `3.1-flash-lite`, etc. — all 404 "not available to new users") — failed.
-  Read as a Google-side new-project restriction, not a model-choice problem;
-  switching models per the user's own AI Studio suggestions didn't help.
-  Rather than keep debugging a third party's account provisioning, switched
-  `tools/llm_extract.py` and `tools/fetch_search_api.py` to the Claude API
-  (`claude-opus-5`) instead — both were already designed to skip gracefully
-  on a missing/broken key, so this was a provider swap, not a redesign.
+  A **second, freshly-generated Gemini key on the same account hit the
+  identical `limit: 0` failure**, confirming this is an account/project-level
+  restriction, not a stale-key problem — regenerating a key doesn't fix it.
+  First switched `tools/llm_extract.py`/`tools/fetch_search_api.py` to the
+  Claude API (`claude-opus-5`) as a working-but-paid fallback, then to
+  **Groq** (`openai/gpt-oss-20b`, OpenAI-compatible JSON mode via
+  `requests` — no new SDK dependency) once the user asked for a genuinely
+  free option instead. Both prior integrations were already designed to
+  skip gracefully on a missing/broken key, so each swap was a provider
+  change, not a redesign. **Note for future model changes**: check
+  console.groq.com/docs/deprecations first —
+  `llama-3.3-70b-versatile`/`llama-3.1-8b-instant` (the obvious first
+  choices) retire 2026-08-16, a week after this was built.
 - **Direct scraping of Malaysian university sites (UM/UKM/USM/UPM/UTM) was
   investigated and rejected before building `fetch_search_api.py`.**
   Alternative conference aggregators that surfaced these universities'
@@ -277,7 +283,7 @@ occasionally be stale.
   every listing), not live data. Individual real conferences (verified via
   search: UTM's InEC2026, APEE2026, UiTM's ICEP2026) exist but are
   scattered across unrelated domains with no shared structure — one
-  scraper per conference, indefinitely. Serper.dev search + Claude
+  scraper per conference, indefinitely. Serper.dev search + LLM
   extraction from each result's actual page sidesteps all three problems.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
@@ -296,8 +302,8 @@ occasionally be stale.
 
 ## Deferred (not built yet — revisit after a stretch of clean runs)
 
-`fetch_search_api.py` (Serper.dev + Claude extraction, Malaysia-focused) and
-`llm_extract.py` (fee/travel/accommodation via Claude) both shipped
+`fetch_search_api.py` (Serper.dev + LLM extraction, Malaysia-focused) and
+`llm_extract.py` (fee/travel/accommodation via LLM, now Groq) both shipped
 2026-08-08 — no longer deferred, see the Steps section above. Still
 deferred:
 
