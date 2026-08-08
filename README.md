@@ -120,19 +120,24 @@ Setup (one-time, ~5 minutes):
    `Conferences`, `Malaysia`, and `Participated` tabs, each with the Status
    dropdown already applied.
 
-## Optional: Malaysia search source + fee/travel/accommodation info
+## Optional: search source (Malaysia + Japan + energy societies) + fee/travel/accommodation info
 
 Two more integrations, both optional and independent of each other and of
 the Google Sheet above — the pipeline skips whichever secrets are unset:
 
-- **Malaysia search source** (`SERPER_API_KEY` + `GROQ_API_KEY`) — direct
-  scraping of Malaysian university sites turned out not to be reliable (see
-  `workflows/daily_conference_digest.md`'s "known edge cases" for what was
-  tried and why it didn't work). Instead, targeted Serper.dev searches
-  (`config/filters.yaml`'s `search_api.queries`) find candidate pages, and
-  an LLM reads each one to confirm it's a real CFP and extract structured
-  fields — configured to never guess a submission deadline that isn't
-  stated.
+- **Search source** (`SERPER_API_KEY` + `GROQ_API_KEY`) — started as
+  Malaysian-university-only (direct scraping of those sites turned out not
+  to be reliable — see `workflows/daily_conference_digest.md`'s "known edge
+  cases" for what was tried and why it didn't work), broadened 2026-08-08 to
+  also cover Japan and general energy-society/journal CFPs that WikiCFP
+  misses regardless of region. Targeted Serper.dev searches
+  (`config/filters.yaml`'s `search_api.queries`, grouped by category) find
+  candidate pages, and an LLM reads each one to confirm it's a real CFP and
+  extract structured fields — configured to never guess a submission
+  deadline that isn't stated. Results feed into the same relevance scoring
+  as WikiCFP records, so Malaysia-located results land on the Malaysia tab
+  and everything else competes for the main Conferences tab on topic
+  relevance exactly like a WikiCFP result would.
 - **Fee/travel/accommodation extraction** (`GROQ_API_KEY` only) — WikiCFP
   almost never states whether a conference charges a fee or covers travel
   for presenters. For each conference not yet checked, the LLM reads its
@@ -149,7 +154,7 @@ extraction well within a mid-size open model's reliable range.
 
 Setup:
 
-1. **Serper.dev** (only needed for the Malaysia search source): sign up
+1. **Serper.dev** (only needed for the search source): sign up
    free at [serper.dev](https://serper.dev) (no card required), grab an API
    key from the dashboard.
 2. **Groq**: sign up free at [console.groq.com](https://console.groq.com)
@@ -211,8 +216,9 @@ docs/           GitHub Pages source (index.html — regenerated every run)
 
 ## What's deferred
 
-Broadening the Serper.dev search beyond Malaysia to catch journal/society
-CFPs elsewhere that WikiCFP misses, a per-day archive of past digests
-(`docs/archive/YYYY-MM-DD.html`), refined predatory-venue blocklisting, and
-a failure-notification safety net — see `workflows/daily_conference_digest.md`'s
-"known edge cases" and "deferred" sections.
+A per-day archive of past digests (`docs/archive/YYYY-MM-DD.html`), refined
+predatory-venue blocklisting, and a failure-notification safety net — see
+`workflows/daily_conference_digest.md`'s "known edge cases" and "deferred"
+sections. (Broadening the search source beyond Malaysia — to Japan and
+general energy-society/journal CFPs — was done 2026-08-08, see the section
+above.)

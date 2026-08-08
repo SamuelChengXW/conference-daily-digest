@@ -291,6 +291,22 @@ occasionally be stale.
   `llm_extract.call_groq()`. Verified locally: an artificial 10-record
   backlog now hits real 429s, retries, and completes with all 10 actually
   processed (vs. the original 53/53 failure on Actions).
+- **User reported the main list looked sparse again (2026-08-08, post-Groq).**
+  Diagnosed by reading `data/conferences_db.json` directly: 65 conferences
+  stored, but 51 (78%) already had a submission deadline in the past —
+  WikiCFP's category feeds carry a lot of historical/expired listings
+  alongside live ones, not just current CFPs. Only 13 were within the
+  180-day window, 12 of which passed `min_relevance_score` (which excluded
+  almost nothing — the filter logic itself was working correctly). The real
+  ceiling was WikiCFP's own live-listing volume for these topics, not a
+  filter being too strict. Fix: broadened `fetch_search_api.py`'s query set
+  (same Serper.dev + Groq mechanism already proven reliable) from
+  Malaysia-only to also cover Japan and general energy-society/journal
+  CFPs, and raised `max_queries_per_run` 8→14 to fit the larger query list
+  — see `config/filters.yaml`'s `search_api.queries` (grouped by category
+  with comments). This was the "broadening beyond Malaysia" item already
+  listed under Deferred; the sparse-list report is what surfaced it as
+  worth doing immediately rather than later.
 - **Direct scraping of Malaysian university sites (UM/UKM/USM/UPM/UTM) was
   investigated and rejected before building `fetch_search_api.py`.**
   Alternative conference aggregators that surfaced these universities'
@@ -325,11 +341,13 @@ occasionally be stale.
 
 `fetch_search_api.py` (Serper.dev + LLM extraction, Malaysia-focused) and
 `llm_extract.py` (fee/travel/accommodation via LLM, now Groq) both shipped
-2026-08-08 — no longer deferred, see the Steps section above. Still
-deferred:
+2026-08-08 — no longer deferred, see the Steps section above. Broadening
+`fetch_search_api.py`'s queries beyond Malaysia (to Japan + general
+energy-society/journal CFPs) also shipped 2026-08-08, same day, once the
+low-candidate-count investigation below showed WikiCFP's own listings were
+the limiting factor and a same-mechanism expansion was the practical fix.
+Still deferred:
 
-- Broadening `fetch_search_api.py`'s search queries beyond Malaysia to
-  catch journal/society CFPs elsewhere that WikiCFP misses.
 - `docs/archive/YYYY-MM-DD.html` history pages.
 - Refined predatory-venue blocklist based on real Phase 1 output.
 - Failure-notification safety net (e.g., open/update a GitHub issue on hard

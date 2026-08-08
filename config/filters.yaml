@@ -245,17 +245,29 @@ excluded_keywords:
 email:
   subject_template: "Conference & CFP Digest — {date}"
 
-# Malaysia university source (Serper.dev search + Claude extraction) — per
-# user request, since direct scraping of UM/UKM/USM/UPM/UTM etc. proved
-# unreliable (see workflows/daily_conference_digest.md's known-edge-cases
-# entry). Skips gracefully if SERPER_API_KEY/ANTHROPIC_API_KEY aren't set,
-# same as every other optional integration in this project — safe to leave
+# Search source (Serper.dev search + Groq extraction) covering conferences
+# WikiCFP doesn't index. Started Malaysia-only per user request, since direct
+# scraping of UM/UKM/USM/UPM/UTM etc. proved unreliable (see
+# workflows/daily_conference_digest.md's known-edge-cases entry), then
+# broadened (2026-08-08) to also cover Japan (the user's Master's location)
+# and general energy-society/journal CFPs that WikiCFP misses regardless of
+# region — global/topic-first, same scope philosophy as the rest of this
+# project. Skips gracefully if SERPER_API_KEY/GROQ_API_KEY aren't set, same
+# as every other optional integration in this project — safe to leave
 # enabled: true even before those secrets exist.
+#
+# Cost/runtime note: each query examines up to RESULTS_PER_QUERY (3) results,
+# each costing one page fetch + one Groq extraction call. Groq's free tier
+# (8,000 TPM on openai/gpt-oss-20b) means a full max_queries_per_run batch
+# plus llm_extract.py's fee/travel batch in the same run can trigger 429
+# retries and stretch total run time — see llm_extract.py's MAX_RETRIES /
+# the workflow doc's "Groq free-tier rate limit" entry. This is expected and
+# self-recovers; it does not need action unless a run starts timing out.
 search_api:
   enabled: true
-  max_queries_per_run: 8
+  max_queries_per_run: 14
   queries:
-    - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers 2026"
+    # Malaysia (UM/UKM/USM/UPM/UTM etc.)
     - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers energy 2026"
     - "Universiti Teknologi Malaysia call for papers energy 2026"
     - "Universiti Malaya call for papers conference 2026"
@@ -263,3 +275,13 @@ search_api:
     - "Universiti Sains Malaysia call for papers conference 2026"
     - "Universiti Putra Malaysia call for papers conference 2026"
     - "Malaysia artificial intelligence conference 2026 call for papers"
+    # Japan
+    - "Japan energy conference 2026 call for papers"
+    - "Japan renewable energy call for papers 2026"
+    - "Japan Society of Energy and Resources call for papers 2026"
+    - "Asia Pacific energy conference Japan 2026 call for papers"
+    # General energy-society / journal CFPs (region-agnostic — WikiCFP often
+    # misses journal special issues and society-run events specifically)
+    - "energy policy journal special issue call for papers 2026"
+    - "energy storage materials conference call for papers 2026"
+    - "AI for energy call for papers conference 2026"

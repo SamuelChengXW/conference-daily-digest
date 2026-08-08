@@ -1,12 +1,15 @@
-"""Serper.dev search + Groq extraction: finds Malaysian university
-conferences (UM/UKM/USM/UPM/UTM etc.) that WikiCFP doesn't index.
+"""Serper.dev search + Groq extraction: finds conferences WikiCFP doesn't
+index. Started as Malaysian-university-only (UM/UKM/USM/UPM/UTM etc.),
+broadened 2026-08-08 to also cover Japan and general energy-society/journal
+CFPs — see config/filters.yaml's search_api.queries for the current query
+list, grouped by category with comments.
 
-Direct scraping of these sources was investigated and rejected — alternative
-conference aggregators are bot-blocked (403 on every request, unrelated to
-their permissive robots.txt), and the one centralized university conference
-hub found (conference.utm.my) has a dead RSS feed and stale placeholder
-content. This is the sustainable replacement: targeted search queries +
-LLM extraction from each result's actual page content.
+Direct scraping of the Malaysian sources was investigated and rejected —
+alternative conference aggregators are bot-blocked (403 on every request,
+unrelated to their permissive robots.txt), and the one centralized
+university conference hub found (conference.utm.my) has a dead RSS feed and
+stale placeholder content. This is the sustainable replacement: targeted
+search queries + LLM extraction from each result's actual page content.
 
 Requires SERPER_API_KEY and GROQ_API_KEY (both GitHub Secrets in
 production, .env locally). Skips gracefully if either is unset.
@@ -117,13 +120,13 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
     search_cfg = config.get("search_api", {})
 
     if not search_cfg.get("enabled"):
-        print("search_api.enabled is false in config — skipping Malaysia search source.")
+        print("search_api.enabled is false in config — skipping search source.")
         return []
 
     serper_key = os.environ.get("SERPER_API_KEY")
     groq_key = llm_extract.get_api_key()  # reuses the same GROQ_API_KEY check
     if not serper_key or not groq_key:
-        print("SERPER_API_KEY / GROQ_API_KEY not set — skipping Malaysia search source "
+        print("SERPER_API_KEY / GROQ_API_KEY not set — skipping search source "
               "(set both in .env for local runs or as GitHub Actions secrets).")
         return []
 
@@ -154,6 +157,6 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
 if __name__ == "__main__":
     cfg = load_config()
     results = run(cfg)
-    print(f"Found {len(results)} Malaysia conference record(s) via search:")
+    print(f"Found {len(results)} conference record(s) via search:")
     for r in results:
         print(f"  {r.submission_deadline}  {r.title[:70]}  ({r.location})")

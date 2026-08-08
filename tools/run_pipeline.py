@@ -59,7 +59,7 @@ def main(send: bool = True) -> int:
         raw = fetch_wikicfp.run(config)
         log(f"  -> {len(raw)} candidate records fetched")
 
-        log("Step 2/9: fetch_search_api (Malaysia university sources via Serper.dev + Groq)")
+        log("Step 2/9: fetch_search_api (Malaysia + Japan + energy-society sources via Serper.dev + Groq)")
         search_records = fetch_search_api.run(config)
         log(f"  -> {len(search_records)} candidate records found via search")
 
