@@ -1,14 +1,18 @@
 # Conference Daily Digest
 
 A daily, unattended pipeline that finds conferences and calls for papers
-(CFPs) relevant to an energy-science research focus (renewable/power
-systems, energy storage/materials, energy policy/economics, AI/ML for
-energy, plus adjacent environment/engineering/economics, with a ranking
-boost for Malaysia/Southeast Asia/Japan) and delivers them by email, a small
-GitHub Pages website, and (optionally) an actionable Google Sheet — with a
-dedicated Malaysia tab (including a broadened general-AI carve-out) fed by
-a Serper.dev + Claude search source, and optional fee/travel/accommodation
-info extracted by Claude from each conference's official page.
+(CFPs) relevant to an energy/engineering/AI research focus (renewable and
+general energy, power systems, energy storage/materials, energy policy/
+economics, engineering generally, AI/ML generally, plus adjacent
+environment/economics, with a ranking boost for Malaysia/Southeast Asia/
+Japan) and delivers them by email, a small GitHub Pages website, and
+(optionally) an actionable Google Sheet — with a dedicated Malaysia tab
+(including a broadened general-AI carve-out) fed by WikiCFP, a Serper.dev +
+Groq search source (covering Malaysia, Japan, general energy societies, and
+Malaysia's own event/statutory/professional-body systems), and Universiti
+Malaya's own event system via a Playwright-based scraper, with optional
+fee/travel/accommodation info extracted by Groq from each conference's
+official page.
 
 Scope is **global and topic-first** — not restricted by conference location.
 

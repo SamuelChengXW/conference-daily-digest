@@ -69,6 +69,63 @@ topics:
       - load forecasting
       - energy informatics
 
+  # Broadened 2026-08-10 per user request: energy beyond renewables,
+  # engineering generally, and AI/ML generally, all at full weight (not the
+  # 0.6 catch-all below) since the user wants these treated as first-class
+  # topics, not an adjacent afterthought. Motivated by two real Malaysia
+  # conferences (RSCE2026 - chemical engineering, MICNC2026 -
+  # nanotechnology & catalysis) that fetch_um_events.py found but didn't
+  # clear the filter under the old narrower scope.
+  - name: "Energy (general)"
+    weight: 1.0
+    # Non-renewable energy — the existing "Renewable energy / power
+    # systems" group above is unchanged/additive, this just covers what it
+    # doesn't.
+    keywords:
+      - oil and gas
+      - petroleum engineering
+      - nuclear energy
+      - thermal energy
+      - combustion
+      - energy conversion
+      - power engineering
+      - electrical engineering
+      - energy engineering
+      - energy systems
+
+  - name: "Engineering (general)"
+    weight: 1.0
+    keywords:
+      - chemical engineering
+      - mechanical engineering
+      - civil engineering
+      - materials engineering
+      - industrial engineering
+      - process engineering
+      - nanotechnology
+      - catalysis
+      - structural engineering
+
+  - name: "AI/ML (general)"
+    weight: 1.0
+    # Bare AI/ML terms — deliberately NOT energy-qualified, unlike "AI/ML
+    # for energy" above. Earlier testing found these noisy (match huge
+    # numbers of unrelated AI conferences) — the user explicitly accepted
+    # that tradeoff to get general AI/ML coverage at full weight. Same term
+    # list as malaysia_ai_keywords below (that carve-out's separate
+    # purpose — ungated Malaysia-tab visibility — is unaffected; this just
+    # means those terms now also count toward the main list's scoring).
+    keywords:
+      - artificial intelligence
+      - machine learning
+      - deep learning
+      - data science
+      - neural network
+      - computer vision
+      - natural language processing
+      - generative ai
+      - large language model
+
   - name: "General environment / engineering / economics"
     weight: 0.6
     keywords:
@@ -122,6 +179,21 @@ wikicfp_categories:
   - electric vehicle
   - solar photovoltaic
   - wind power
+  # Broadened 2026-08-10 alongside the new topics groups (engineering
+  # generally, energy beyond renewables, AI/ML generally) — see topics'
+  # comment above for why. "engineering" and "artificial intelligence"
+  # were already here; these add more specific sub-fields so WikiCFP's own
+  # per-category feeds actually fetch candidates in these areas, not just
+  # the scoring layer re-scoring what was already fetched.
+  - chemical engineering
+  - mechanical engineering
+  - civil engineering
+  - materials science
+  - nanotechnology
+  - oil and gas
+  - nuclear energy
+  - machine learning
+  - data science
   # Malaysia / Southeast Asia / Japan — region ranking boost (region_boost
   # below) applies on top of these, but they're also just a real discovery
   # lever: a conference tagged "malaysia" won't necessarily also be tagged
@@ -324,6 +396,24 @@ search_api:
     - "energy policy journal special issue call for papers 2026"
     - "energy storage materials conference call for papers 2026"
     - "AI for energy call for papers conference 2026"
+    # Malaysia energy statutory bodies + engineering professional bodies —
+    # verified live 2026-08-10. seda.gov.my's INSPIRE symposium (co-run
+    # with UKM) had a real abstract/paper deadline on first check; SOMChE
+    # 2026 (35th Symposium of Malaysian Chemical Engineers, Sunway
+    # University + IChemE Malaysia) explicitly covers AI-driven process
+    # design and digital twins — engineering and AI/ML at once. See
+    # workflows/daily_conference_digest.md's known-edge-cases entry.
+    - "site:seda.gov.my symposium call for papers 2026"
+    - "site:st.gov.my OR site:seda.gov.my energy conference 2026"
+    - "SOMChE 2026 Malaysia chemical engineering call for papers"
+    - "IChemE Malaysia conference call for papers 2026"
+    # General (non-institution-specific) Malaysia queries reflecting the
+    # broadened scope (engineering generally, energy beyond renewables,
+    # AI/ML generally) — same reasoning as the topics broadening above.
+    - "Malaysia chemical engineering conference call for papers 2026"
+    - "Malaysia mechanical engineering conference call for papers 2026"
+    - "Malaysia oil and gas conference call for papers 2026"
+    - "Malaysia machine learning conference call for papers 2026"
 
 # Universiti Malaya's own event management system (umevent.um.edu.my) —
 # real, substantial (665 total events, 45 for 2026 alone as of 2026-08-09),

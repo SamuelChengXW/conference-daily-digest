@@ -435,6 +435,46 @@ occasionally be stale.
     department/center pages stays the most reliable channel for this one
     freshness advantage; the pipeline is a complement here, not a
     replacement.
+- **Broadened topic scope beyond energy-only, per user request
+  (2026-08-10).** Motivated by a concrete gap: `fetch_um_events.py` found
+  two real, clearly on-topic Malaysia conferences (RSCE2026 — chemical
+  engineering; MICNC2026 — nanotechnology & catalysis) that didn't clear
+  `min_relevance_score` under the old scope, because "engineering" only
+  existed as a narrow sub-clause of the 0.6-weight catch-all, and "energy"
+  was scoped almost entirely to renewables. Added three new full-weight
+  (1.0) topic groups to `config/filters.yaml`: "Energy (general)"
+  (oil/gas, nuclear, thermal, combustion — additive to the existing
+  renewable-specific group, not replacing it), "Engineering (general)"
+  (chemical/mechanical/civil/materials engineering, nanotechnology,
+  catalysis), and "AI/ML (general)" — bare AI/ML terms, deliberately
+  **not** energy-qualified this time. That last one reverses an earlier
+  deliberate choice ("AI/ML for energy"'s keywords were kept
+  energy-qualified specifically because bare AI/ML terms were "confirmed
+  noisy in testing") — the user was asked directly whether general AI/ML
+  should get full weight (matching everything else) or a reduced
+  catch-all-style weight, and chose full weight, explicitly accepting more
+  non-energy AI conferences will now surface. Verified the regression case
+  directly: `classify_relevance.score_keyword_match()` on both RSCE2026 and
+  MICNC2026 now returns 0.132 (was 0, both now clear the 0.10 threshold).
+  Matching `wikicfp_categories` entries added too (a separate discovery-time
+  list from `topics`'s scoring list — without these, WikiCFP would never
+  fetch candidates in these areas regardless of how they'd score).
+  Also investigated (same live-verify discipline as every prior round)
+  whether sibling universities (USM, UKM, UiTM) run a UM-style centralized,
+  Playwright-scrapable event database — no evidence found; USM appears to
+  use per-conference tooling (subdomain-per-conference, similar to UPM's
+  pattern) rather than one central listing, so a second Playwright scraper
+  wasn't built without a concrete target. Found and added instead: **SEDA
+  Malaysia** (`seda.gov.my` — confirmed live, its INSPIRE symposium page,
+  co-run with UKM, had a real abstract/paper deadline on first check),
+  **Suruhanjaya Tenaga/Energy Commission Malaysia** (`st.gov.my`), and
+  **IChemE Malaysia / SOMChE 2026** (35th Symposium of Malaysian Chemical
+  Engineers, Sunway University — its own description name-checks
+  "AI-driven process design" and "digital twins," hitting the newly
+  broadened engineering *and* AI/ML scope at once) as new
+  `search_api.queries` entries. Query pool grew 28→36 —
+  `rotate_queries()` (built for exactly this in the prior round) needs no
+  code change, just cycles over 3 days instead of 2.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
