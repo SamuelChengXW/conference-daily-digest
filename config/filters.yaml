@@ -324,3 +324,14 @@ search_api:
     - "energy policy journal special issue call for papers 2026"
     - "energy storage materials conference call for papers 2026"
     - "AI for energy call for papers conference 2026"
+
+# Universiti Malaya's own event management system (umevent.um.edu.my) —
+# real, substantial (665 total events, 45 for 2026 alone as of 2026-08-09),
+# found via a user-provided link. Needs Playwright (a headless browser) to
+# read, unlike every other source here — see tools/fetch_um_events.py's
+# module docstring and workflows/daily_conference_digest.md's
+# known-edge-cases entry for why. Requires GROQ_API_KEY (for CFP
+# confirmation) same as search_api above; skips gracefully if unset or if
+# playwright isn't installed.
+um_event_system:
+  enabled: true

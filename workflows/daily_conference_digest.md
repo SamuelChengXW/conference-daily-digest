@@ -387,6 +387,16 @@ occasionally be stale.
   4. `timeout-minutes: 45` added to the workflow's pipeline step as an
      outer safety net, in case some future unforeseen hang isn't caught by
      1-3.
+  **Update (2026-08-09, later the same day)**: fix 3 above turned out to be
+  more than defense-in-depth — a subsequent local run hit real Groq 429
+  `Retry-After` values of 140-771 seconds (not the single-digit-to-20s
+  values seen earlier), all correctly caught and skipped by the new
+  `MAX_RATE_LIMIT_WAIT` cap. This is a strong retroactive signal that the
+  original 1h36m hang was plausibly `llm_extract.py` blocking on one or
+  more multi-hundred-second sleeps rather than (or in addition to) a
+  WikiCFP slowdown — the empty log from the buffering issue made it
+  impossible to tell at the time, and both explanations are now covered by
+  the same fixes regardless of which was the actual cause.
 - **Asked the user for real Malaysia conferences we were missing, got 5
   concrete links, live-verified each (2026-08-09).** Far more useful than
   guessing at more generic sources. Findings:

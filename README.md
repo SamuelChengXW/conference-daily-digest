@@ -153,6 +153,16 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   official page and extracts only what's actually stated there — runs once
   per conference (cached via `data/conferences_db.json`), not once per day,
   so usage scales with new conferences, not the whole archive.
+- **UM Event System** (`tools/fetch_um_events.py`, `GROQ_API_KEY` +
+  `playwright install chromium`) — Universiti Malaya's own event management
+  system (665 total events, 45 for 2026 alone as of 2026-08-09). Unlike
+  every other source here, its listing only renders via JavaScript and its
+  bot-protection blocks a default headless browser outright — needs
+  Playwright specifically (see the module's docstring and the workflow
+  doc's known-edge-cases entry for the full investigation). Covers all UM
+  event types, not just CFPs, so it's filtered the same way WikiCFP is
+  (`fetch_wikicfp.prefilter_relevant()`, reused as-is) before spending a
+  Groq call confirming each candidate.
 
 Both use **Groq's free API** (`tools/llm_extract.py`, `tools/fetch_search_api.py`)
 — Gemini was tried first since it also has a free tier, but the account hit
@@ -179,6 +189,7 @@ Setup:
 ```
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
+playwright install chromium   # one-time browser download, for fetch_um_events.py
 cp .env.example .env   # fill in RESEND_API_KEY if you want to test sending
 cd tools
 python run_pipeline.py            # full run, sends a real email
