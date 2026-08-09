@@ -21,3 +21,8 @@ venv/
 
 # OS
 .DS_Store
+
+# Personal exports the user drops in here for review (e.g. a downloaded
+# Google Sheet snapshot) — not project source, never belongs in the repo.
+*.xlsx
+*.xls

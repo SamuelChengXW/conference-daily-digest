@@ -308,6 +308,12 @@ search_api:
     - "ISTT 2027 call for papers"
     - "InEC 2027 UTM call for papers"
     - "ICEP UiTM call for papers 2027"
+    # Specific real 2026 events the user found and we were missing
+    # (2026-08-09) — see workflows/daily_conference_digest.md's
+    # known-edge-cases entry for how each was verified live.
+    - "SYNERGY 2026 UTM PROSPECT call for papers"
+    - "HEIC 2026 UPM human ecology call for papers"
+    - "I-GREDUC 2026 UPM call for papers"
     # Japan
     - "Japan energy conference 2026 call for papers"
     - "Japan renewable energy call for papers 2026"

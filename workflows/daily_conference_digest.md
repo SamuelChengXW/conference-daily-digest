@@ -387,6 +387,44 @@ occasionally be stale.
   4. `timeout-minutes: 45` added to the workflow's pipeline step as an
      outer safety net, in case some future unforeseen hang isn't caught by
      1-3.
+- **Asked the user for real Malaysia conferences we were missing, got 5
+  concrete links, live-verified each (2026-08-09).** Far more useful than
+  guessing at more generic sources. Findings:
+  - **`umevent.um.edu.my`** (UM Event System) — real and substantial: 665
+    total events, 45 for 2026. But the listing renders client-side (a plain
+    fetch shows only the search UI and a result count, no rows) — no public
+    JSON/API endpoint found by guessing common patterns
+    (`/search/results?year=`, etc.). Unlike everything else in this
+    project (`requests` + `BeautifulSoup` only), unlocking this needs a
+    headless browser. User explicitly approved adding Playwright for this
+    specifically — see `tools/fetch_um_events.py`.
+  - **`conference.upm.edu.my`** — real, live, individual-conference
+    subpages, confirmed via two user-provided links: HEIC-II 2026 and
+    I-GREDUC 2026. Matches exactly what the user described: "main landing
+    page not updated, new conferences just use subpages." No
+    `sitemap.xml`, no discoverable index of subpages — nothing found short
+    of already knowing the specific subpage or finding it via search.
+    Mitigated by adding the two confirmed events as named
+    `search_api.queries` entries rather than trying to enumerate the
+    domain.
+  - **UTM department/center subdomains** (`fai.utm.my`, `prospect.utm.my`)
+    — confirms UTM conferences scatter across many faculty/center
+    subdomains rather than one central site. The existing `site:utm.my`
+    query already spans all subdomains via Google's `site:` operator, so
+    this wasn't a targeting gap — `fai.utm.my/icssa2026/` (already one of
+    our curated known-series queries) validated that. But
+    `prospect.utm.my/synergy2026` (**SYNERGY 2026**) wasn't yet in the
+    system, and its abstract deadline (extended to 2026-08-15) was six
+    days away when found — added as an urgent named query rather than
+    waiting on organic rotation.
+  - **Facebook** — genuinely the freshest channel (SYNERGY 2026's deadline
+    extension was posted there first, ahead of the conference's own
+    website reflecting it) but a real ceiling: aggressive anti-scraping,
+    unreliable via Serper, no Graph API token in scope. Explicitly not
+    pursued as an automated source — the user's own awareness of specific
+    department/center pages stays the most reliable channel for this one
+    freshness advantage; the pipeline is a complement here, not a
+    replacement.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
