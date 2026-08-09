@@ -54,6 +54,11 @@ REQUEST_TIMEOUT = 30
 # honoring the Retry-After header.
 MAX_RETRIES = 3
 RATE_LIMIT_DEFAULT_WAIT = 25  # seconds, fallback when Retry-After header is absent
+MAX_RATE_LIMIT_WAIT = 60  # hard ceiling on a single Retry-After-driven sleep — a header
+# reporting something far larger (e.g. reflecting a daily-quota-scale reset rather than
+# the per-minute TPM window this was designed around) should mean "give up on this call
+# and let the record carry over to a future run" (see llm_extract.py's MAX_RECORDS_PER_RUN
+# docstring), not "block this step for however long the header says."
 
 FEE_TRAVEL_INSTRUCTIONS = (
     "Respond with ONLY a JSON object, no other text, matching exactly this shape:\n"
@@ -127,6 +132,11 @@ def call_groq(api_key: str, user_content: str) -> Optional[dict]:
 
         if resp.status_code == 429:
             wait_s = int(resp.headers.get("retry-after", RATE_LIMIT_DEFAULT_WAIT))
+            if wait_s > MAX_RATE_LIMIT_WAIT:
+                print(f"  WARNING: Groq rate-limited (429) with an unusually long "
+                      f"Retry-After ({wait_s}s > {MAX_RATE_LIMIT_WAIT}s cap) — skipping "
+                      f"rather than blocking this long.")
+                return None
             if attempt < MAX_RETRIES:
                 print(f"  Groq rate-limited (429) — waiting {wait_s}s "
                       f"(retry {attempt}/{MAX_RETRIES - 1})...")

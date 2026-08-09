@@ -354,6 +354,39 @@ occasionally be stale.
   (`ceil(25/14) = 2`). Daily Serper/Groq spend and run time stay the same
   as before (still capped at `max_queries_per_run` per run); only which
   14 queries run on a given day changes.
+- **A verification run took 1h36m before being manually canceled
+  (2026-08-09), vs. the normal ~15-17 min.** `gh run view --log` after
+  cancellation showed **zero pipeline output** — not even the first
+  `=== Daily digest pipeline starting ===` line — which was itself
+  misleading: Python block-buffers stdout when it isn't a tty (the case
+  under GitHub Actions' log capture), so a hang before enough output
+  accumulates to trigger a flush leaves the log looking empty even if the
+  process ran through several steps' worth of `print()` calls already —
+  they just never got flushed before the forced cancellation. This made
+  the actual stuck step impossible to identify after the fact. Ruled out
+  Groq-side exhaustion first (direct key test showed 998/1000 requests and
+  7893/8000 tokens still available — healthy). Most likely cause: WikiCFP
+  itself having a broadly slow/degraded period, where `_throttled_get()`'s
+  existing per-request retry+backoff (worst case ~75s: 3×20s timeout + 5s +
+  10s backoff) is individually bounded but can still compound across dozens
+  of category/detail-page requests into a very long total. Three fixes,
+  all defense-in-depth rather than mutually exclusive:
+  1. `PYTHONUNBUFFERED=1` added to the workflow's env — so a future hang
+     shows real-time log output instead of nothing.
+  2. `fetch_wikicfp.py`'s `WALL_CLOCK_BUDGET_SECONDS = 20*60` — `run()` now
+     checks elapsed time before starting each category/detail fetch and
+     stops early past the budget, returning whatever it already has;
+     remaining categories/items are picked up on a future run (same
+     carry-forward pattern as `llm_extract.py`'s `MAX_RECORDS_PER_RUN`).
+     Verified by forcing the budget to 0 and confirming a clean early exit
+     with a clear log message rather than a crash.
+  3. `llm_extract.py`'s `call_groq()` now caps a 429's `Retry-After`-driven
+     sleep at `MAX_RATE_LIMIT_WAIT = 60`s — if a future response ever
+     reports something far larger (e.g. a daily-quota-scale reset), skip
+     that call rather than block for however long the header says.
+  4. `timeout-minutes: 45` added to the workflow's pipeline step as an
+     outer safety net, in case some future unforeseen hang isn't caught by
+     1-3.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a

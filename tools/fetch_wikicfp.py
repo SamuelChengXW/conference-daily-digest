@@ -64,6 +64,20 @@ USER_AGENT = "Mozilla/5.0 (compatible; ConferenceDigestBot/1.0; +https://github.
 CRAWL_DELAY_SECONDS = 5
 MAX_RETRIES = 3
 
+# Ceiling on run()'s total wall-clock time. _throttled_get()'s per-request
+# retry+backoff already tolerates one flaky request (worst case per request:
+# ~3 * 20s timeout + 5s + 10s backoff =~ 75s), but a broadly degraded
+# WikiCFP day — many requests each timing out through all MAX_RETRIES
+# attempts — can still compound across dozens of category/detail fetches.
+# Discovered 2026-08-09: a real run took 1h36m before being manually
+# canceled, entirely inside this step (confirmed by an empty pipeline log —
+# see PYTHONUNBUFFERED note in .github/workflows/daily_digest.yml). Once
+# the budget is hit, run() stops starting new fetches and returns whatever
+# it already has — remaining categories/items are simply picked up on a
+# future run, same "carry forward" pattern used elsewhere in this project
+# (e.g. llm_extract.py's MAX_RECORDS_PER_RUN backlog handling).
+WALL_CLOCK_BUDGET_SECONDS = 20 * 60
+
 _session = requests.Session()
 _session.headers.update({"User-Agent": USER_AGENT})
 _last_request_time = 0.0
@@ -250,11 +264,21 @@ def run(config: Optional[dict] = None) -> list[dict]:
     (pre-normalization).
     """
     config = config or load_config()
+    start_time = time.monotonic()
+
+    def budget_exceeded() -> bool:
+        return time.monotonic() - start_time > WALL_CLOCK_BUDGET_SECONDS
 
     seen_eventids: set[str] = set()
     candidates: list[dict] = []
 
-    for cat in config.get("wikicfp_categories", []):
+    categories = config.get("wikicfp_categories", [])
+    for i, cat in enumerate(categories):
+        if budget_exceeded():
+            print(f"  WARNING: wall-clock budget ({WALL_CLOCK_BUDGET_SECONDS}s) exceeded "
+                  f"during category fetch — stopping early ({len(categories) - i} "
+                  f"categor(y/ies) left for a future run).")
+            break
         for item in fetch_category_rss(cat):
             eid = extract_eventid(item["wikicfp_link"])
             if not eid or eid in seen_eventids:
@@ -269,7 +293,11 @@ def run(config: Optional[dict] = None) -> list[dict]:
 
     raw_records = []
     skipped = 0
-    for item in relevant:
+    for i, item in enumerate(relevant):
+        if budget_exceeded():
+            print(f"  WARNING: wall-clock budget exceeded during detail fetch — "
+                  f"{len(relevant) - i} item(s) left unfetched, picked up on a future run.")
+            break
         detail = fetch_event_detail(item["wikicfp_link"])
         if detail is None:
             skipped += 1
