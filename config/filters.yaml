@@ -252,9 +252,14 @@ email:
 # broadened (2026-08-08) to also cover Japan (the user's Master's location)
 # and general energy-society/journal CFPs that WikiCFP misses regardless of
 # region — global/topic-first, same scope philosophy as the rest of this
-# project. Skips gracefully if SERPER_API_KEY/GROQ_API_KEY aren't set, same
-# as every other optional integration in this project — safe to leave
-# enabled: true even before those secrets exist.
+# project. Broadened again (2026-08-09) with Malaysia professional-body
+# sites (ieeemy.org, myiem.org.my — both verified live/accessible, unlike
+# the earlier-rejected aggregators) and a curated list of known recurring
+# Malaysia conference series, so a specific annual series doesn't depend on
+# generic keyword search ranking to get found. Skips gracefully if
+# SERPER_API_KEY/GROQ_API_KEY aren't set, same as every other optional
+# integration in this project — safe to leave enabled: true even before
+# those secrets exist.
 #
 # Cost/runtime note: each query examines up to RESULTS_PER_QUERY (3) results,
 # each costing one page fetch + one Groq extraction call. Groq's free tier
@@ -263,11 +268,19 @@ email:
 # retries and stretch total run time — see llm_extract.py's MAX_RETRIES /
 # the workflow doc's "Groq free-tier rate limit" entry. This is expected and
 # self-recovers; it does not need action unless a run starts timing out.
+#
+# The query list below is now longer than max_queries_per_run — that's
+# intentional. fetch_search_api.py's run() rotates a max_queries_per_run
+# -sized window through this list by day-of-year, so the full pool gets
+# covered over a few days rather than the tail entries silently never
+# running (a real gap in the earlier fixed-prefix behavior — see the
+# workflow doc's known-edge-cases entry). Daily Serper/Groq spend and run
+# time stay about what they were at 14 queries/run either way.
 search_api:
   enabled: true
   max_queries_per_run: 14
   queries:
-    # Malaysia (UM/UKM/USM/UPM/UTM etc.)
+    # Malaysia universities (UM/UKM/USM/UPM/UTM etc.)
     - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers energy 2026"
     - "Universiti Teknologi Malaysia call for papers energy 2026"
     - "Universiti Malaya call for papers conference 2026"
@@ -275,6 +288,26 @@ search_api:
     - "Universiti Sains Malaysia call for papers conference 2026"
     - "Universiti Putra Malaysia call for papers conference 2026"
     - "Malaysia artificial intelligence conference 2026 call for papers"
+    # Malaysia professional bodies — verified live 2026-08-09 (see workflow
+    # doc). ieeemy.org's conference listing alone surfaced 7 real 2026
+    # Malaysia conferences on first check; myiem.org.my is broader/noisier
+    # (mixes in non-academic dinners/seminars) so it leans on the same
+    # conservative is_conference_cfp Groq check already used everywhere else.
+    - "site:ieeemy.org conference call for papers 2026"
+    - "site:myiem.org.my conference call for papers 2026"
+    # Known recurring Malaysia conference series — named explicitly so a
+    # specific annual series isn't at the mercy of generic search ranking.
+    # Sourced from ieeemy.org's listing plus series already seen via this
+    # project's own search results (InEC, ICEP).
+    - "APEE 2027 call for papers"
+    - "IICAIET 2027 call for papers"
+    - "ISCI 2027 IEEE call for papers"
+    - "IEACon 2027 call for papers"
+    - "ICSIPA 2027 call for papers"
+    - "ICSSA 2027 call for papers"
+    - "ISTT 2027 call for papers"
+    - "InEC 2027 UTM call for papers"
+    - "ICEP UiTM call for papers 2027"
     # Japan
     - "Japan energy conference 2026 call for papers"
     - "Japan renewable energy call for papers 2026"

@@ -322,6 +322,38 @@ occasionally be stale.
   scattered across unrelated domains with no shared structure — one
   scraper per conference, indefinitely. Serper.dev search + LLM
   extraction from each result's actual page sidesteps all three problems.
+- **User asked for more ideas to detect Malaysia conferences (2026-08-09).**
+  Live-verified several candidate sources before proposing anything (same
+  discipline as the entry above): `10times.com` and `conferenceindex.org`
+  both **403 Forbidden** on direct fetch, same bot-blocking pattern as the
+  earlier-rejected aggregators — not viable. `myjurnal.my` (Malaysia's
+  national journal aggregator, a plausible source for journal special-issue
+  CFPs) — connection failed (`ECONNREFUSED`), not currently reachable.
+  `ieeemy.org` (IEEE Malaysia Section) — **confirmed live and real**: its
+  conference listing page returned 7 genuine 2026 Malaysia conferences on
+  first fetch (APEE 2026, already known, plus 6 not yet in the system:
+  ISCI, IEACon, ICSIPA, IICAIET, ICSSA, ISTT), `robots.txt` only blocks
+  admin/system paths. `myiem.org.my` (Institution of Engineers Malaysia) —
+  also live, broader/noisier scope (mixes in non-academic dinners/
+  seminars), relies on the existing conservative `is_conference_cfp` Groq
+  check to filter correctly. Added both as new `search_api.queries`
+  entries — no new scraping code needed, both slot into the exact same
+  Serper+Groq mechanism. Also added a curated "known recurring Malaysia
+  conference series" query group (APEE, IICAIET, ISCI, IEACon, ICSIPA,
+  ICSSA, ISTT, InEC, ICEP) so a specific annual series isn't at the mercy
+  of generic keyword-search ranking.
+- **Query pool outgrew `max_queries_per_run` — fixed-prefix truncation was
+  a silent coverage gap.** Adding the sources above brought
+  `search_api.queries` to 25 entries against a 14/run cap; the original
+  `queries[:max_queries_per_run]` slice meant entries past index 13 would
+  **never run, ever** — not delayed, just permanently unreachable. Fixed by
+  adding `fetch_search_api.py`'s `rotate_queries()`: a `max_queries_per_run`
+  -sized window shifted by day-of-year, wrapping around the list. Verified
+  by simulating 4 consecutive `day_of_year` values against the real 25/14
+  config — full pool covered within 2 days, as expected
+  (`ceil(25/14) = 2`). Daily Serper/Groq spend and run time stay the same
+  as before (still capped at `max_queries_per_run` per run); only which
+  14 queries run on a given day changes.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a

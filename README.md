@@ -130,14 +130,23 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   to be reliable — see `workflows/daily_conference_digest.md`'s "known edge
   cases" for what was tried and why it didn't work), broadened 2026-08-08 to
   also cover Japan and general energy-society/journal CFPs that WikiCFP
-  misses regardless of region. Targeted Serper.dev searches
-  (`config/filters.yaml`'s `search_api.queries`, grouped by category) find
-  candidate pages, and an LLM reads each one to confirm it's a real CFP and
-  extract structured fields — configured to never guess a submission
-  deadline that isn't stated. Results feed into the same relevance scoring
-  as WikiCFP records, so Malaysia-located results land on the Malaysia tab
-  and everything else competes for the main Conferences tab on topic
-  relevance exactly like a WikiCFP result would.
+  misses regardless of region, then broadened again 2026-08-09 with Malaysia
+  professional-body sources (IEEE Malaysia Section, Institution of Engineers
+  Malaysia) and a curated list of known recurring Malaysia conference series
+  (APEE, IICAIET, ISCI, IEACon, ICSIPA, ICSSA, ISTT, InEC, ICEP), so a
+  specific annual series doesn't depend on generic keyword-search ranking to
+  get found. Targeted Serper.dev searches (`config/filters.yaml`'s
+  `search_api.queries`, grouped by category) find candidate pages, and an
+  LLM reads each one to confirm it's a real CFP and extract structured
+  fields — configured to never guess a submission deadline that isn't
+  stated. Results feed into the same relevance scoring as WikiCFP records,
+  so Malaysia-located results land on the Malaysia tab and everything else
+  competes for the main Conferences tab on topic relevance exactly like a
+  WikiCFP result would. The query list is now longer than one run's budget
+  (`search_api.max_queries_per_run`) — `fetch_search_api.py` rotates a
+  same-sized window through the full list by day-of-year, so the whole pool
+  gets covered every couple of days rather than daily spend/run time
+  growing every time a query is added.
 - **Fee/travel/accommodation extraction** (`GROQ_API_KEY` only) — WikiCFP
   almost never states whether a conference charges a fee or covers travel
   for presenters. For each conference not yet checked, the LLM reads its

@@ -1,8 +1,10 @@
 """Serper.dev search + Groq extraction: finds conferences WikiCFP doesn't
 index. Started as Malaysian-university-only (UM/UKM/USM/UPM/UTM etc.),
 broadened 2026-08-08 to also cover Japan and general energy-society/journal
-CFPs — see config/filters.yaml's search_api.queries for the current query
-list, grouped by category with comments.
+CFPs, then broadened again 2026-08-09 with Malaysia professional-body sites
+(ieeemy.org, myiem.org.my) and a curated list of known recurring Malaysia
+conference series — see config/filters.yaml's search_api.queries for the
+current query list, grouped by category with comments.
 
 Direct scraping of the Malaysian sources was investigated and rejected —
 alternative conference aggregators are bot-blocked (403 on every request,
@@ -14,10 +16,15 @@ search queries + LLM extraction from each result's actual page content.
 Requires SERPER_API_KEY and GROQ_API_KEY (both GitHub Secrets in
 production, .env locally). Skips gracefully if either is unset.
 
-Cost/quota discipline: capped at max_queries_per_run queries (config),
-RESULTS_PER_QUERY results examined per query — each examined result costs
-one page fetch + one Groq request, so total Groq spend per run is bounded
-at max_queries_per_run * RESULTS_PER_QUERY calls, worst case.
+Cost/quota discipline: capped at max_queries_per_run queries per run
+(config), RESULTS_PER_QUERY results examined per query — each examined
+result costs one page fetch + one Groq request, so total Groq spend per run
+is bounded at max_queries_per_run * RESULTS_PER_QUERY calls, worst case.
+Once the query pool grew past max_queries_per_run, rotate_queries() picks a
+different day-of-year-shifted window each run instead of always the same
+fixed prefix, so the full pool gets covered over a few days rather than the
+tail entries never running at all (a real gap in the earlier fixed-prefix
+behavior).
 
 Run standalone for a quick manual check:
     python tools/fetch_search_api.py
@@ -115,6 +122,28 @@ def extract_conference_record(result: dict, groq_api_key: str) -> Optional[Confe
     )
 
 
+def rotate_queries(queries: list[str], max_per_run: int) -> list[str]:
+    """Returns a max_per_run-sized, wrapping window into queries, shifted by
+    day-of-year so the full pool gets covered over multiple days instead of
+    a fixed prefix that silently never reaches queries past index
+    max_per_run - 1. E.g. with 25 queries and max_per_run=14: day N covers
+    indices [14N % 25, ...), day N+1 picks up right after, wrapping around
+    to index 0 partway through — the full 25 gets touched within 2 days,
+    then the cycle repeats. Daily Serper/Groq spend stays bounded at
+    max_per_run either way (see the cost/runtime note in
+    config/filters.yaml above search_api).
+    """
+    if not queries or max_per_run <= 0:
+        return []
+    if len(queries) <= max_per_run:
+        return queries
+
+    day_of_year = today().timetuple().tm_yday
+    start = (day_of_year * max_per_run) % len(queries)
+    window = [queries[(start + i) % len(queries)] for i in range(max_per_run)]
+    return window
+
+
 def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
     config = config or load_config()
     search_cfg = config.get("search_api", {})
@@ -130,7 +159,9 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
               "(set both in .env for local runs or as GitHub Actions secrets).")
         return []
 
-    queries = search_cfg.get("queries", [])[: search_cfg.get("max_queries_per_run", 8)]
+    queries = rotate_queries(
+        search_cfg.get("queries", []), search_cfg.get("max_queries_per_run", 8)
+    )
 
     seen_urls: set[str] = set()
     records: list[ConferenceRecord] = []
