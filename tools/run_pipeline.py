@@ -85,7 +85,8 @@ def main(send: bool = True) -> int:
         log(f"  -> {n_extracted} record(s) sent for fee/travel extraction")
 
         log("Step 8/10: publish_sheet (syncs Status/Notes back from the Sheet "
-            "first, incl. Dismissed, then writes Conferences + Malaysia + Participated tabs)")
+            "first, incl. Dismissed, then writes Conferences + Malaysia + Free Submission + "
+            "Participated tabs)")
         published = publish_sheet.run(db_records, config)
         log(f"  -> Google Sheet published: {published}")
 
