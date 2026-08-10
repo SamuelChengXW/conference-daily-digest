@@ -71,7 +71,7 @@ deadline window).
 
 ## Optional: Google Sheet (choose/dismiss conferences, track submissions)
 
-Two tabs, both auto-managed:
+Four tabs, all auto-managed:
 
 - **Conferences** — the current/upcoming list (same as the email/website).
   A conference **automatically drops off once its deadline passes** — no
@@ -86,12 +86,20 @@ Two tabs, both auto-managed:
   all (this carve-out only affects this tab — the main Conferences/website/
   email stay energy-topic-first). Populated by WikiCFP plus the optional
   Malaysia search source below.
+- **Free Submission** — added per user request (tight budget): a strict
+  subset of Conferences, filtered to conferences the Fee column has
+  **confirmed** have no submission cost (a deterministic check on the
+  already-extracted fee text — free words like "no submission fee" without
+  a currency amount attached; requires the fee/travel extraction below to
+  already have run for that conference). A conference whose fee is still
+  "Not stated" or hasn't been checked yet simply isn't here yet — it's
+  never assumed free. Grows automatically as more conferences get checked.
 - **Participated** — a permanent log of anything you've ever marked
   Submitted / Accepted / Rejected, "so I can remember which one I had
   submitted." Unlike Conferences, rows here are **never** dropped just
   because the deadline passed.
 
-`Notes` is a free-text column on both tabs for your own reference — never
+`Notes` is a free-text column on every tab for your own reference — never
 overwritten by the pipeline.
 
 This step is entirely optional — the pipeline skips it gracefully if unset.

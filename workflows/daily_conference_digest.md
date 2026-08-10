@@ -117,9 +117,10 @@ to do next.
    persists that to `data/conferences_db.json`), so a Status you set
    yesterday — including `Dismissed` — is already in effect for *today's*
    email/website, not just the Sheet. Reads/reconciles Status+Notes across
-   the Conferences AND Malaysia tabs (`merge_existing_rows()`, Conferences
-   taking priority on conflicts) before writing, since a Malaysia energy
-   conference legitimately appears on both. Publishes three tabs:
+   the Conferences, Malaysia, AND Free Submission tabs (`merge_existing_rows()`,
+   earlier-listed tabs taking priority on conflicts) before writing, since a
+   free Malaysia energy conference legitimately appears on all three.
+   Publishes four tabs:
    - **Conferences** — the same windowed, non-expired, non-Dismissed list
      as the email/website (via `filter_and_rank.run()`). A conference drops
      off this tab automatically once its deadline passes — no manual
@@ -136,6 +137,16 @@ to do next.
      `fetch_wikicfp.py` too: without it, a Malaysia-AI listing with zero
      energy-topic keywords would never survive the pre-detail-fetch filter
      to reach classification in the first place.
+   - **Free Submission** *(added per user request, 2026-08-10 — tight
+     budget)* — a strict subset of Conferences
+     (`filter_and_rank.free_tab`/`is_confirmed_free`): only conferences
+     whose already-extracted `fee_info` text has been deterministically
+     confirmed free (a regex, not a second LLM call — see
+     `filter_and_rank.py`'s `_FREE_RE`/`_CURRENCY_RE`, validated against
+     every real non-"Not stated" `fee_info` value in the live DB before
+     shipping). Requires `llm_extract.py`'s fee/travel extraction to have
+     already run for a conference — "Not stated" or not-yet-checked isn't
+     assumed free, it just doesn't appear here yet.
    - **Participated** — a permanent log of anything ever marked Submitted /
      Accepted / Rejected. Unlike Conferences, entries here are never
      dropped just because the deadline passed — "which ones did I actually
@@ -510,6 +521,35 @@ occasionally be stale.
   broadening pulled in far more WikiCFP/Groq work), so adding more
   per-run query volume on top of that wasn't the right lever — letting
   rotation absorb the growth instead keeps daily cost/runtime flat.
+- **Added a "Free Submission" Sheet tab, per user request (2026-08-10 —
+  tight budget, needs confirmed-free venues at a glance).** Deliberately
+  did *not* add a second Groq-extracted boolean field to the fee/travel
+  extraction schema: `llm_extract.py` only re-checks records with
+  `fee_info is None` (see its `MAX_RECORDS_PER_RUN` docstring), so a new
+  boolean would sit empty/`None` on every one of the ~80 records already
+  extracted before this change, and backfilling all of them would mean
+  re-spending a Groq call per record for no new information — the fee
+  text is already sitting right there. Instead, `filter_and_rank.py` got a
+  deterministic regex (`is_confirmed_free()`, `_FREE_RE`/`_CURRENCY_RE`)
+  applied to the existing `fee_info` string at read time — zero extra
+  Groq cost, works retroactively on everything already extracted, matches
+  `CLAUDE.md`'s "deterministic code handles execution" once the page's
+  been reduced to a short structured sentence. Validated against every
+  non-"Not stated" `fee_info` value in the live DB (81 records checked, 6
+  non-trivial) before writing the rule: correctly flags both real
+  "No submission fee." entries as free, and correctly excludes every
+  currency-amount mention (even "10% DISCOUNT... capped at $30" — still a
+  paid fee) and "Only paid papers will be published." Deliberately
+  conservative on mixed signals: "free for members, $50 for non-members"
+  has both a free-word hit and a currency hit, so it's *not* counted —
+  conditionally-free isn't the same claim as confirmed no-cost.
+  `free_tab()` is a strict subset of `run()`'s membership (same
+  window/relevance/Dismissed gating, plus the free check) rather than its
+  own universe, so "Free Submission ⊆ Conferences" always holds — no
+  free-but-otherwise-filtered-out conference can appear here. Wired into
+  `publish_sheet.py` as a fourth tab; its Status/Notes now also
+  participate in the pre-write merge-read (previously just Conferences +
+  Malaysia) so a Status set specifically on this tab survives the next run.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a

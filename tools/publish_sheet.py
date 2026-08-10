@@ -1,8 +1,8 @@
-"""Publish to a three-tab Google Sheet:
+"""Publish to a four-tab Google Sheet:
 
-  "Conferences"  — current/upcoming only. Same windowed, non-expired list as
-                   the email/website (via filter_and_rank.run()) — a
-                   conference automatically drops off this tab once its
+  "Conferences"      — current/upcoming only. Same windowed, non-expired
+                   list as the email/website (via filter_and_rank.run()) —
+                   a conference automatically drops off this tab once its
                    deadline passes, no manual cleanup needed. Has a Status
                    dropdown (see STATUS_OPTIONS) so you can mark one
                    "Dismissed" to permanently hide it (see below), or track
@@ -17,17 +17,27 @@
                    filter_and_rank.malaysia_tab). The carve-out never
                    affects Conferences/website/email — Malaysia-AI-only
                    records exist ONLY on this tab.
+  "Free Submission" — dedicated view of confirmed-free-to-submit
+                   conferences (per user request, 2026-08-10 — tight
+                   budget), a strict subset of Conferences (see
+                   filter_and_rank.free_tab / is_confirmed_free): only
+                   shows what the fee_info extraction has actually
+                   confirmed has no cost, via a deterministic regex on the
+                   already-extracted fee text — "Not stated" or not-yet-
+                   checked records simply don't appear here yet, they're
+                   not assumed free.
   "Participated" — a permanent log of anything ever marked Submitted /
                    Accepted / Rejected. Unlike the Conferences tab, entries
                    here are NEVER dropped just because the deadline passed —
                    this is specifically "which ones did I submit to",
                    independent of the current window.
 
-Status persistence: this script reads the Conferences AND Malaysia tabs'
-current Status/Notes BEFORE rewriting them (merged, Conferences taking
-priority on conflicts — see merge_existing_rows), and writes them back onto
-the matching ConferenceRecord's `user_status`/`user_notes` fields — then
-saves the *persistent* data/conferences_db.json (not just the Sheet) via
+Status persistence: this script reads the Conferences, Malaysia, AND Free
+Submission tabs' current Status/Notes BEFORE rewriting them (merged,
+earlier-listed tabs taking priority on conflicts — see
+merge_existing_rows), and writes them back onto the matching
+ConferenceRecord's `user_status`/`user_notes` fields — then saves the
+*persistent* data/conferences_db.json (not just the Sheet) via
 dedupe_and_store.save_db(), so status survives even if the Sheet were ever
 lost. This is also what makes "Dismissed" stick: filter_and_rank.py checks
 `user_status != "Dismissed"`, so a dismissed record disappears from the
@@ -95,6 +105,7 @@ PARTICIPATED_STATUSES = {"Submitted", "Accepted", "Rejected"}
 
 CONFERENCES_TAB = "Conferences"
 MALAYSIA_TAB = "Malaysia"
+FREE_TAB = "Free Submission"
 PARTICIPATED_TAB = "Participated"
 
 
@@ -240,15 +251,18 @@ def run(db_records: Optional[list[ConferenceRecord]] = None, config: Optional[di
     spreadsheet = client.open_by_key(sheet_id)
     conf_ws = get_or_create_worksheet(spreadsheet, CONFERENCES_TAB)
     malaysia_ws = get_or_create_worksheet(spreadsheet, MALAYSIA_TAB)
+    free_ws = get_or_create_worksheet(spreadsheet, FREE_TAB)
 
-    # 1. Pull Status/Notes as the user currently has them on BOTH tabs,
-    #    BEFORE we overwrite either, and persist onto the records (-> JSON
-    #    DB). A record can legitimately appear on both (a Malaysia energy
-    #    conference), so merge rather than let whichever tab we happen to
-    #    read second blank out a Status set on the other.
+    # 1. Pull Status/Notes as the user currently has them on all three
+    #    non-Participated tabs, BEFORE we overwrite any, and persist onto
+    #    the records (-> JSON DB). A record can legitimately appear on more
+    #    than one tab (e.g. a free Malaysia energy conference is on all
+    #    three), so merge rather than let whichever tab we happen to read
+    #    last blank out a Status set on another.
     existing_conf_rows = read_sheet_rows(conf_ws)
     existing_malaysia_rows = read_sheet_rows(malaysia_ws)
-    merged_existing = merge_existing_rows(existing_conf_rows, existing_malaysia_rows)
+    existing_free_rows = read_sheet_rows(free_ws)
+    merged_existing = merge_existing_rows(existing_conf_rows, existing_malaysia_rows, existing_free_rows)
     sync_user_fields(db_records, merged_existing)
     dedupe_and_store.save_db({r.dedup_key: r for r in db_records})
 
@@ -263,7 +277,12 @@ def run(db_records: Optional[list[ConferenceRecord]] = None, config: Optional[di
     malaysia_records = filter_and_rank.malaysia_tab(db_records, config)
     write_tab(malaysia_ws, [record_to_row(r) for r in malaysia_records])
 
-    # 4. Participated tab: union of (rows already there) and (any DB record
+    # 4. Free Submission tab: confirmed-free-to-submit subset of
+    #    Conferences (see filter_and_rank.free_tab / is_confirmed_free).
+    free_records = filter_and_rank.free_tab(db_records, config)
+    write_tab(free_ws, [record_to_row(r) for r in free_records])
+
+    # 5. Participated tab: union of (rows already there) and (any DB record
     #    currently Submitted/Accepted/Rejected) — never dropped just because
     #    a deadline passed, only ever added to or refreshed.
     part_ws = get_or_create_worksheet(spreadsheet, PARTICIPATED_TAB)

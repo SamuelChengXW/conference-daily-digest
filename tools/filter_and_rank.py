@@ -6,9 +6,39 @@ Run standalone against the persistent DB:
 """
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 from common import ConferenceRecord, DB_PATH, load_config, parse_iso_date, read_json, today
+
+# Free-submission detection for filter_and_rank.free_tab() — deterministic
+# regex on the already-extracted fee_info text (llm_extract.py/
+# fetch_search_api.py), not a second LLM call: CLAUDE.md's "deterministic
+# code handles execution" applies once the unstructured page has already
+# been reduced to a short structured sentence. Validated against every
+# non-"Not stated" fee_info value in the live DB as of 2026-08-10 (81
+# records checked, 6 non-trivial) — correctly flags both "No submission
+# fee." entries as free, and correctly excludes anything mentioning a
+# currency amount (even a discount off a paid fee) or "Only paid papers
+# will be published." Deliberately conservative: "free for members, $50
+# for non-members" has both a free-word hit and a currency hit, so it's
+# NOT counted as confirmed-free (conditionally free isn't the same claim
+# as "no cost, period" — worth a manual check of the official page either
+# way).
+_FREE_RE = re.compile(
+    r"\bfree\b|\bno\s+\w*\s*fee\b|\bno\s+fee\b|no charge|no cost|complimentary|\bwaived\b",
+    re.IGNORECASE,
+)
+_CURRENCY_RE = re.compile(
+    r"(usd|myr|rm|eur|gbp|sgd|jpy|[$€£¥])\s?\d|\d+\s?(usd|myr|rm|eur|gbp|sgd|jpy)",
+    re.IGNORECASE,
+)
+
+
+def is_confirmed_free(fee_info: Optional[str]) -> bool:
+    if not fee_info:
+        return False
+    return bool(_FREE_RE.search(fee_info)) and not bool(_CURRENCY_RE.search(fee_info))
 
 
 def is_in_window(record: ConferenceRecord, window_days: int) -> bool:
@@ -102,6 +132,37 @@ def malaysia_tab(records: Optional[list[ConferenceRecord]] = None, config: Optio
             r.malaysia_ai_match
             or (r.region_match == "Malaysia" and r.relevance_score >= min_score)
         )
+    ]
+    return rank(filtered)
+
+
+def free_tab(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict] = None) -> list[ConferenceRecord]:
+    """Records for the dedicated Free Submission Sheet tab (per user
+    request, 2026-08-10 — tight budget, needs to see confirmed-free venues
+    at a glance): the exact same membership as run() (windowed/not-expired/
+    not-Dismissed/passes min_relevance_score — this is a subset of
+    Conferences, not a separate universe, so it stays topic-first like
+    everything else here), further filtered to is_confirmed_free(fee_info).
+    Only ever shows what the fee_info extraction has actually confirmed —
+    "Not stated" or no fee_info yet (not every record has been checked;
+    see llm_extract.py's MAX_RECORDS_PER_RUN) means it simply doesn't
+    appear here yet, not that it's assumed to cost money.
+    """
+    config = config or load_config()
+    if records is None:
+        raw = read_json(DB_PATH, default={})
+        records = [ConferenceRecord.from_dict(v) for v in raw.values()]
+
+    window_days = config.get("deadline_window_days", 120)
+    min_score = config.get("min_relevance_score", 0.0)
+
+    filtered = [
+        r for r in records
+        if not r.excluded
+        and r.relevance_score >= min_score
+        and r.user_status != "Dismissed"
+        and is_in_window(r, window_days)
+        and is_confirmed_free(r.fee_info)
     ]
     return rank(filtered)
 
