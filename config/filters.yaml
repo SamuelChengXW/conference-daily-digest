@@ -414,6 +414,23 @@ search_api:
     - "Malaysia mechanical engineering conference call for papers 2026"
     - "Malaysia oil and gas conference call for papers 2026"
     - "Malaysia machine learning conference call for papers 2026"
+    # More Malaysian universities — verified live 2026-08-10. Only
+    # UM/UKM/USM/UPM/UTM had institution-wide coverage before this; every
+    # one of these five checked turned up a real, current 2026 conference
+    # on the first search (ICPEA/IConBEE at UiTM, ICME at UTHM, MECON at
+    # MMU, EnCon at UNIMAS, ICAIMS at UMS). See workflows/
+    # daily_conference_digest.md's known-edge-cases entry.
+    - "Universiti Teknologi MARA call for papers conference 2026"
+    - "Universiti Tun Hussein Onn Malaysia call for papers conference 2026"
+    - "Multimedia University Malaysia call for papers conference 2026"
+    - "Universiti Malaysia Sarawak call for papers conference 2026"
+    - "Universiti Malaysia Sabah call for papers conference 2026"
+    - "ICPEA 2027 UiTM power engineering call for papers"
+    - "IConBEE 2027 UiTM call for papers"
+    - "ICME 2027 UTHM mechanical engineering call for papers"
+    - "MECON 2027 MMU call for papers"
+    - "EnCon 2027 UNIMAS engineering call for papers"
+    - "ICAIMS 2027 UMS call for papers"
 
 # Universiti Malaya's own event management system (umevent.um.edu.my) —
 # real, substantial (665 total events, 45 for 2026 alone as of 2026-08-09),

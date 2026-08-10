@@ -475,6 +475,38 @@ occasionally be stale.
   `search_api.queries` entries. Query pool grew 28→36 —
   `rotate_queries()` (built for exactly this in the prior round) needs no
   code change, just cycles over 3 days instead of 2.
+- **Covered more Malaysian universities, per user request (2026-08-10).**
+  Institution coverage before this was just 5 (UM/UKM/USM/UPM/UTM) out of
+  Malaysia's ~20 public universities. Checked five more not covered at
+  all — **every single one** turned up a real, current 2026 conference on
+  the first search: **UiTM** (Universiti Teknologi MARA — Malaysia's
+  *largest* university, previously represented by exactly one narrow named
+  query and nothing institution-wide — found ICPEA 2026, IEEE Power
+  Engineering Applications; IConBEE 2026, Built Environment & Engineering),
+  **UTHM** (Universiti Tun Hussein Onn Malaysia — found ICME 2026,
+  Mechanical & Manufacturing Engineering, hosted on its own
+  `conference.uthm.edu.my` subdomain — same subpage-per-conference pattern
+  already seen at UPM), **MMU** (Multimedia University, private — found
+  MECON 2026, hosted on `difcon.mmu.edu.my`), **UNIMAS** (Universiti
+  Malaysia Sarawak — found EnCon 2026, a substantial 500+-delegate event),
+  **UMS** (Universiti Malaysia Sabah — found ICAIMS 2026, IEEE Sabah
+  Subsection co-organized, hits engineering and AI/ML at once). Added one
+  institution-wide query plus one named-conference query per university —
+  same low-risk pattern as every prior institution addition, no new code.
+  Checked USIM and UMT too but found no confirmed current conference in a
+  reasonable search effort — not added without the same evidence bar the
+  other five met. Also checked whether UTHM/MMU's conference-hosting
+  subdomains have an enumerable central index (would justify a dedicated
+  scraper like `fetch_um_events.py`) — `conference.uthm.edu.my`'s root
+  page didn't even load cleanly on a quick check (socket hang up),
+  consistent with the same no-index pattern already found at UPM; not
+  investigated further. Query pool grew 36→47 — `rotate_queries()` needs
+  no code change, just cycles over 4 days instead of 3. Deliberately did
+  *not* raise `max_queries_per_run` alongside this: the most recent run
+  already took 21 minutes (up from ~10-17 historically, after the topic
+  broadening pulled in far more WikiCFP/Groq work), so adding more
+  per-run query volume on top of that wasn't the right lever — letting
+  rotation absorb the growth instead keeps daily cost/runtime flat.
 - **The first real digest only returned 6 conferences** from 5 WikiCFP
   categories/6 keyword queries — widened to 10 categories/15 queries (each
   category feed is WikiCFP's ~20-item page size, so more categories is a
