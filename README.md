@@ -64,7 +64,10 @@ cron.
    email arrives, and the Pages site (step 2's URL) shows the digest.
 
 That's it — after a clean manual run, the `schedule:` trigger in
-`daily_digest.yml` (22:37 UTC daily ≈ 07:37 JST the next day) takes over.
+`daily_digest.yml` takes over (22:37 UTC every 2 days ≈ 07:37 JST the
+following day — changed from daily 2026-08-10 once run time grew to
+~15-29 min as sources/topics were added; still well within the 180-day
+deadline window).
 
 ## Optional: Google Sheet (choose/dismiss conferences, track submissions)
 
@@ -235,7 +238,7 @@ config/         filters.yaml — the only file you should need to edit regularly
 data/           conferences_db.json — persistent dedup/history/status state (git-tracked)
 docs/           GitHub Pages source (index.html — regenerated every run)
 .tmp/           Disposable per-run scratch output, gitignored
-.github/workflows/  The daily cron
+.github/workflows/  The cron (every 2 days — see daily_digest.yml)
 ```
 
 ## What's deferred

@@ -24,8 +24,11 @@ against WikiCFP is well within its `robots.txt` politeness terms (the 5s
 
 ## Trigger
 
-`.github/workflows/daily_digest.yml`, on a daily cron (see that file for
-the exact schedule) and on manual `workflow_dispatch` for testing.
+`.github/workflows/daily_digest.yml`, on a cron that fires every 2 days
+(changed from daily 2026-08-10 per user request, once run time grew to
+~15-29 min as sources/topics were added — see that file for the exact
+schedule and its month-boundary quirk) and on manual `workflow_dispatch`
+for testing.
 
 ## Required inputs
 
