@@ -8,16 +8,14 @@ on:
   # 07:22). Fixed here; double-check with `date -d` before trusting a
   # UTC/JST comment again.
   #
-  # Every 2 days (2026-08-10, per user request — the run time had grown
-  # to ~15-29 min as sources/topics were added, and a 2-day cadence is
-  # plenty fresh for a CFP digest whose deadline window is 180 days).
-  # `*/2` on the day-of-month field fires on the 1st/3rd/5th/.../31st —
-  # standard cron has no calendar-agnostic "every N days" step, so this
-  # has a known quirk at month boundaries: day 31 and day 1 are both odd,
-  # so Jan 31 -> Feb 1 is a 1-day gap, not 2. Close enough for this
-  # purpose; not worth a script-level workaround.
+  # Weekly (2026-08-19, per user request — every-2-days was itself a step
+  # down from daily on 2026-08-10 as run time grew with more sources/
+  # topics; weekly is plenty fresh for a CFP digest whose deadline window
+  # is 180 days). Fires Sundays — the day-of-week field (`0` = Sunday)
+  # cycles cleanly every 7 days with none of the month-boundary quirk the
+  # previous `*/2` day-of-month approach had.
   schedule:
-    - cron: "37 22 */2 * *"
+    - cron: "37 22 * * 0"
   # Manual trigger for testing — always run this once before trusting the
   # schedule (see README.md's setup checklist).
   workflow_dispatch: {}

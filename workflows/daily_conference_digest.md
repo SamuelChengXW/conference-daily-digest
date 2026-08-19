@@ -17,18 +17,21 @@ submission isn't limited by the author's location, so we don't filter by
 where the conference is held. Location is shown in each entry purely as
 travel-planning info.
 
-Originally built weekly, switched to daily per user request. Running daily
-against WikiCFP is well within its `robots.txt` politeness terms (the 5s
-`Crawl-delay` is respected either way) — this just means the crawl happens
-7x more often, not more aggressively per-request.
+Originally built weekly, switched to daily per user request, then stepped
+back down (daily -> every 2 days on 2026-08-10 -> weekly on 2026-08-19) as
+run time grew to ~15-29 min with more sources/topics added. Any of these
+cadences is well within WikiCFP's `robots.txt` politeness terms (the 5s
+`Crawl-delay` is respected regardless of how often the whole crawl runs) —
+this only ever affected how often the crawl happens, not how aggressively
+per-request.
 
 ## Trigger
 
-`.github/workflows/daily_digest.yml`, on a cron that fires every 2 days
-(changed from daily 2026-08-10 per user request, once run time grew to
-~15-29 min as sources/topics were added — see that file for the exact
-schedule and its month-boundary quirk) and on manual `workflow_dispatch`
-for testing.
+`.github/workflows/daily_digest.yml`, on a cron that fires weekly
+(stepped down from daily -> every 2 days on 2026-08-10 -> weekly on
+2026-08-19, both per user request as run time grew to ~15-29 min with more
+sources/topics — see that file for the exact schedule) and on manual
+`workflow_dispatch` for testing.
 
 ## Required inputs
 
@@ -219,11 +222,18 @@ occasionally be stale.
   crons see documented queueing delays); never add a `push` trigger
   alongside the auto-commit step (infinite loop); GitHub auto-disables
   scheduled workflows after 60 days with no commits to the default branch —
-  now a non-issue at daily cadence (was a real risk at weekly). Also: an
-  earlier version of this schedule was documented as "17:22 UTC ≈ 07:22
-  JST" — that arithmetic was simply wrong (17:22 + 9h = 02:22, not 07:22).
-  Caught and fixed when switching to daily; worth double-checking any
-  UTC/local-time comment in a cron file rather than trusting it by eye.
+  a real (if distant) risk again now that the cadence stepped back to
+  weekly (2026-08-19): every successful run commits at least
+  `data/conferences_db.json`'s refreshed `last_verified` timestamps, so
+  one working run every ~7 days leaves comfortable margin (~8-9 consecutive
+  missed weeks before 60 days), but a silent multi-week breakage would burn
+  through that margin far faster than it would have at the old daily
+  cadence. Worth a periodic manual check that runs are still green, not
+  just trusting the schedule indefinitely. Also: an earlier version of this
+  schedule was documented as "17:22 UTC ≈ 07:22 JST" — that arithmetic was
+  simply wrong (17:22 + 9h = 02:22, not 07:22). Caught and fixed when
+  switching to daily; worth double-checking any UTC/local-time comment in a
+  cron file rather than trusting it by eye.
 - **A routine re-fetch must never silently erase a user-set Status.**
   `dedupe_and_store.upsert()` originally replaced an existing DB record
   wholesale with the freshly-refetched one on every match — fine for

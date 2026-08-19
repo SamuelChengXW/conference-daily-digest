@@ -343,11 +343,15 @@ email:
 #
 # The query list below is now longer than max_queries_per_run — that's
 # intentional. fetch_search_api.py's run() rotates a max_queries_per_run
-# -sized window through this list by day-of-year, so the full pool gets
-# covered over a few days rather than the tail entries silently never
+# -sized window through this list by day-of-year, so the full pool
+# eventually gets covered rather than the tail entries silently never
 # running (a real gap in the earlier fixed-prefix behavior — see the
-# workflow doc's known-edge-cases entry). Daily Serper/Groq spend and run
-# time stay about what they were at 14 queries/run either way.
+# workflow doc's known-edge-cases entry). Per-run Serper/Groq spend and run
+# time stay about what they were at 14 queries/run regardless of how often
+# the pipeline runs — but at the current weekly cadence (2026-08-19), a
+# full 47-query cycle now takes about 10 weeks rather than the ~4 days it
+# took daily. Slower discovery is the direct tradeoff of the reduced run
+# frequency, not a bug.
 search_api:
   enabled: true
   max_queries_per_run: 14

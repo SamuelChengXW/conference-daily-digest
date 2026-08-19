@@ -1,6 +1,6 @@
 # Conference Daily Digest
 
-A daily, unattended pipeline that finds conferences and calls for papers
+A weekly, unattended pipeline that finds conferences and calls for papers
 (CFPs) relevant to an energy/engineering/AI research focus (renewable and
 general energy, power systems, energy storage/materials, energy policy/
 economics, engineering generally, AI/ML generally, plus adjacent
@@ -22,7 +22,7 @@ This README is just the setup checklist.
 
 ## How it works, in one line
 
-`.github/workflows/daily_digest.yml` runs `tools/run_pipeline.py` daily,
+`.github/workflows/daily_digest.yml` runs `tools/run_pipeline.py` weekly,
 which fetches from WikiCFP, scores relevance by keyword against
 [`config/filters.yaml`](config/filters.yaml), dedupes against
 `data/conferences_db.json`, and renders + sends the result — no AI/agent
@@ -64,10 +64,9 @@ cron.
    email arrives, and the Pages site (step 2's URL) shows the digest.
 
 That's it — after a clean manual run, the `schedule:` trigger in
-`daily_digest.yml` takes over (22:37 UTC every 2 days ≈ 07:37 JST the
-following day — changed from daily 2026-08-10 once run time grew to
-~15-29 min as sources/topics were added; still well within the 180-day
-deadline window).
+`daily_digest.yml` takes over (22:37 UTC every Sunday ≈ 07:37 JST Monday —
+stepped down from daily → every 2 days → weekly as run time grew with more
+sources/topics added; still well within the 180-day deadline window).
 
 ## Optional: Google Sheet (choose/dismiss conferences, track submissions)
 
@@ -160,8 +159,12 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   WikiCFP result would. The query list is now longer than one run's budget
   (`search_api.max_queries_per_run`) — `fetch_search_api.py` rotates a
   same-sized window through the full list by day-of-year, so the whole pool
-  gets covered every couple of days rather than daily spend/run time
-  growing every time a query is added.
+  gets covered over several weeks rather than each run's spend/run time
+  growing every time a query is added — at the current weekly cadence and
+  47-query pool, a full cycle takes about 10 weeks (simulated directly,
+  not estimated) since each week's window only advances a few positions,
+  not a clean 14-item step. Slower discovery than when this ran daily is
+  the direct tradeoff of the reduced cadence, not a bug.
 - **Fee/travel/accommodation extraction** (`GROQ_API_KEY` only) — WikiCFP
   almost never states whether a conference charges a fee or covers travel
   for presenters. For each conference not yet checked, the LLM reads its
@@ -246,7 +249,7 @@ config/         filters.yaml — the only file you should need to edit regularly
 data/           conferences_db.json — persistent dedup/history/status state (git-tracked)
 docs/           GitHub Pages source (index.html — regenerated every run)
 .tmp/           Disposable per-run scratch output, gitignored
-.github/workflows/  The cron (every 2 days — see daily_digest.yml)
+.github/workflows/  The cron (weekly — see daily_digest.yml)
 ```
 
 ## What's deferred

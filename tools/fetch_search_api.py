@@ -22,9 +22,14 @@ result costs one page fetch + one Groq request, so total Groq spend per run
 is bounded at max_queries_per_run * RESULTS_PER_QUERY calls, worst case.
 Once the query pool grew past max_queries_per_run, rotate_queries() picks a
 different day-of-year-shifted window each run instead of always the same
-fixed prefix, so the full pool gets covered over a few days rather than the
-tail entries never running at all (a real gap in the earlier fixed-prefix
-behavior).
+fixed prefix, so the full pool eventually gets covered rather than the tail
+entries never running at all (a real gap in the earlier fixed-prefix
+behavior). How long "eventually" takes depends on run frequency, not just
+pool size: at the original daily cadence this cycled every ~few days; at
+the current weekly cadence (2026-08-19) a full cycle over the 47-query pool
+takes about 10 weeks, since each week's window only shifts a few positions
+rather than a clean max_queries_per_run-sized step. Slower discovery is the
+direct, expected tradeoff of a less frequent run, not a bug.
 
 Run standalone for a quick manual check:
     python tools/fetch_search_api.py
