@@ -1,25 +1,21 @@
-"""LLM-based extraction for information WikiCFP's structured data doesn't
-carry: registration fee and travel/accommodation support. Uses Groq's free
-API (OpenAI-compatible chat completions) — chosen after both the user's
-Gemini keys (two separate keys, same account) hit an identical account-level
-"limit: 0" free-tier restriction unrelated to which key or model was tried,
-and after weighing Claude (works, but not free — see workflow doc's known
-edge cases for the full trail). Groq's free tier has no such restriction and
-this is simple structured extraction, well within a mid-size open model's
-reliable range.
+"""Shared Groq helpers: fetch_page_text() and call_groq() (JSON mode, with
+429 retry/backoff), used by extract_access.py, fetch_search_api.py and
+fetch_um_events.py.
 
-Deliberately scoped to run once per conference, not once per pipeline run:
-callers only invoke this for records that don't already have
-fee_info/travel_support_info set (see dedupe_and_store.py, which carries
-those fields forward on every re-fetch), so cost/quota usage scales with
-new-conferences-per-day, not total-conferences-per-day.
+This module originally also did homepage-only fee/travel extraction (its
+own run()). That was replaced on 2026-10-13 by extract_access.py, because
+across 228 stored records it found a fee for just 10 and travel support for
+just 3: fees and grants live on Registration / Travel Grant subpages, not
+homepages. See workflows/daily_conference_digest.md.
 
-Requires GROQ_API_KEY (GitHub Secret in production, .env locally). Skips
-gracefully if unset — records simply keep the "not yet checked" default,
-same pattern as every other optional integration in this project.
+Provider history: Groq's free API (OpenAI-compatible chat completions) was
+chosen after both the user's Gemini keys (two separate keys, same account)
+hit an identical account-level "limit: 0" free-tier restriction, and after
+weighing Claude (works, but not free) — see the workflow doc's known edge
+cases for the full trail.
 
-Run standalone for a quick manual check:
-    python tools/llm_extract.py
+Requires GROQ_API_KEY (GitHub Secret in production, .env locally); callers
+skip gracefully if unset.
 """
 from __future__ import annotations
 
@@ -31,7 +27,7 @@ from typing import Optional
 import requests
 from bs4 import BeautifulSoup
 
-from common import ConferenceRecord, PROJECT_ROOT
+from common import PROJECT_ROOT
 from dotenv import load_dotenv
 
 load_dotenv(PROJECT_ROOT / ".env")
@@ -51,31 +47,15 @@ REQUEST_TIMEOUT = 30
 # 1,800-2,300 tokens, so only ~3-4 fit per minute. Discovered the hard way:
 # the first live CI run (2026-08-08) fired 53 requests back-to-back with no
 # pacing and nearly all of them 429'd. call_groq() now retries on 429,
-# honoring the Retry-After header.
+# honoring the Retry-After header. Callers bound their own per-run volume
+# (extract_access.MAX_RECORDS_PER_RUN, search_api.max_queries_per_run).
 MAX_RETRIES = 3
 RATE_LIMIT_DEFAULT_WAIT = 25  # seconds, fallback when Retry-After header is absent
 MAX_RATE_LIMIT_WAIT = 60  # hard ceiling on a single Retry-After-driven sleep — a header
 # reporting something far larger (e.g. reflecting a daily-quota-scale reset rather than
 # the per-minute TPM window this was designed around) should mean "give up on this call
-# and let the record carry over to a future run" (see llm_extract.py's MAX_RECORDS_PER_RUN
-# docstring), not "block this step for however long the header says."
-
-FEE_TRAVEL_INSTRUCTIONS = (
-    "Respond with ONLY a JSON object, no other text, matching exactly this shape:\n"
-    '{"fee_info": "<string>", "travel_support_info": "<string>"}\n\n'
-    "fee_info: a short factual statement about the registration/submission fee, "
-    "based ONLY on what the page text states — e.g. 'Free for authors', "
-    "'USD 300 early bird / USD 400 regular', 'Registration fee required, amount "
-    f"not stated on this page'. If the page says nothing about fees, respond with "
-    f"exactly: '{NOT_STATED}'.\n\n"
-    "travel_support_info: a short factual statement about whether travel/"
-    "accommodation is covered for accepted authors/presenters, based ONLY on what "
-    "the page text states — e.g. 'Not covered, self-funded', 'Travel grant "
-    "available for selected presenters'. If the page says nothing about travel or "
-    f"accommodation support, respond with exactly: '{NOT_STATED}'.\n\n"
-    "Do not guess or infer anything not directly stated in the text."
-)
-
+# and let the record carry over to a future run" (see extract_access.py's
+# MAX_RECORDS_PER_RUN), not "block this step for however long the header says."
 
 def get_api_key() -> Optional[str]:
     return os.environ.get("GROQ_API_KEY")
@@ -157,71 +137,3 @@ def call_groq(api_key: str, user_content: str) -> Optional[dict]:
         return json.loads(content)
     except (KeyError, IndexError, json.JSONDecodeError):
         return None
-
-
-def extract_fee_travel_info(record: ConferenceRecord, api_key: str) -> tuple[str, str]:
-    """Returns (fee_info, travel_support_info). Falls back to NOT_STATED for
-    both without spending a request if the official page can't be fetched.
-    """
-    page_text = fetch_page_text(record.url)
-    if not page_text:
-        return NOT_STATED, NOT_STATED
-
-    data = call_groq(
-        api_key,
-        f"Conference: {record.title}\n"
-        f"Official site text (may be incomplete/truncated):\n\n{page_text}\n\n"
-        f"{FEE_TRAVEL_INSTRUCTIONS}",
-    )
-    if not data:
-        return NOT_STATED, NOT_STATED
-    return data.get("fee_info", NOT_STATED), data.get("travel_support_info", NOT_STATED)
-
-
-MAX_RECORDS_PER_RUN = 30  # keeps one run's worst-case Groq spend bounded (30
-# RPM free-tier limit) even after a large one-time backlog — e.g. the day
-# GROQ_API_KEY is first set against an already-populated DB, every existing
-# record is "pending" at once. Records not reached this run stay fee_info=None
-# (dedupe_and_store carries that forward — see its docstring) and get picked
-# up on a later day, prioritized by nearest deadline below.
-
-
-def run(records: list[ConferenceRecord]) -> int:
-    """Populate fee_info/travel_support_info for records that don't have it
-    yet (mutates in place), capped at MAX_RECORDS_PER_RUN per run. Returns
-    the number of records actually attempted this run.
-    """
-    api_key = get_api_key()
-    if not api_key:
-        print("GROQ_API_KEY not set — skipping fee/travel extraction "
-              "(set it in .env for local runs or as a GitHub Actions secret).")
-        return 0
-
-    pending = [r for r in records if r.fee_info is None or r.travel_support_info is None]
-    pending.sort(key=lambda r: r.submission_deadline or "9999-99-99")
-    if len(pending) > MAX_RECORDS_PER_RUN:
-        print(f"  {len(pending)} record(s) pending fee/travel extraction — "
-              f"processing the {MAX_RECORDS_PER_RUN} nearest-deadline ones this "
-              f"run, rest carry over to future runs.")
-        pending = pending[:MAX_RECORDS_PER_RUN]
-
-    for record in pending:
-        fee_info, travel_info = extract_fee_travel_info(record, api_key)
-        record.fee_info = fee_info
-        record.travel_support_info = travel_info
-
-    return len(pending)
-
-
-if __name__ == "__main__":
-    from common import DB_PATH, read_json
-    import dedupe_and_store
-
-    raw = read_json(DB_PATH, default={})
-    records = [ConferenceRecord.from_dict(v) for v in raw.values()][:3]  # small manual test batch
-    n = run(records)
-    print(f"Processed {n} record(s):")
-    for r in records:
-        print(f"  {r.title[:60]}\n    fee: {r.fee_info}\n    travel: {r.travel_support_info}")
-    if n:
-        dedupe_and_store.save_db({r.dedup_key: r for r in records})

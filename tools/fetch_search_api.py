@@ -1,5 +1,12 @@
-"""Serper.dev search + Groq extraction: finds conferences WikiCFP doesn't
-index. Started as Malaysian-university-only (UM/UKM/USM/UPM/UTM etc.),
+"""Serper.dev search + Groq extraction: finds opportunities WikiCFP doesn't
+index. Since the 2026-10-13 free & funded redesign, config's
+search_api.priority_queries search for free/fee-waivable/funded
+conferences, no-APC journal calls, and standalone travel grants directly
+and run every time; the older rotating CFP pool below fills in behind them.
+Cost/funding status is NOT read from this pass — every record found here
+goes through extract_access.py's evidence-checked verdict afterward.
+
+History: Started as Malaysian-university-only (UM/UKM/USM/UPM/UTM etc.),
 broadened 2026-08-08 to also cover Japan and general energy-society/journal
 CFPs, then broadened again 2026-08-09 with Malaysia professional-body sites
 (ieeemy.org, myiem.org.my) and a curated list of known recurring Malaysia
@@ -54,20 +61,23 @@ RESULTS_PER_QUERY = 3
 EXTRACTION_INSTRUCTIONS = (
     "Respond with ONLY a JSON object, no other text, matching exactly this shape "
     "(use null for any date/location field you can't determine):\n"
-    '{"is_conference_cfp": <bool>, "title": "<string>", '
+    '{"is_opportunity": <bool>, "opportunity_type": "conference|journal_issue|funding_program", '
+    '"title": "<string>", '
     '"submission_deadline": "<YYYY-MM-DD or null>", '
+    '"funding_deadline": "<YYYY-MM-DD or null>", '
     '"conference_start": "<YYYY-MM-DD or null>", "conference_end": "<YYYY-MM-DD or null>", '
-    '"location": "<string or null>", "topics": ["<string>", ...], '
-    '"fee_info": "<string>", "travel_support_info": "<string>"}\n\n'
-    "is_conference_cfp: true ONLY if this page is an academic conference, "
-    "workshop, or journal special-issue call for papers with an actual paper "
-    "submission process. False for university news items, general event "
-    "listings, non-academic events, or pages you can't confirm are a genuine "
-    "CFP. Be conservative — if unsure, false.\n\n"
-    "submission_deadline: the paper/abstract submission deadline as YYYY-MM-DD. "
-    "null if not clearly stated in the page text — do not guess or infer a date.\n\n"
-    f"fee_info / travel_support_info: state only what's in the text, else "
-    f"exactly '{llm_extract.NOT_STATED}'.\n\n"
+    '"location": "<string or null>", "topics": ["<string>", ...]}\n\n'
+    "is_opportunity: true ONLY if this page is ONE specific, current academic "
+    "opportunity: a conference/workshop call for papers (opportunity_type="
+    "conference), a journal special-issue call for papers (journal_issue), or a "
+    "travel grant / scholarship / fellowship program researchers or students "
+    "can apply to (funding_program). False for news items, lists/round-ups of "
+    "many opportunities, non-academic events, or anything you can't confirm. "
+    "Be conservative — if unsure, false.\n\n"
+    "submission_deadline: the paper/abstract submission deadline. "
+    "funding_deadline: the application deadline for a grant/scholarship/travel "
+    "support, if any. Both as YYYY-MM-DD, null if not clearly stated — do not "
+    "guess or infer a date.\n\n"
     "Do not guess or infer anything not directly stated in the text."
 )
 
@@ -103,7 +113,16 @@ def extract_conference_record(result: dict, groq_api_key: str) -> Optional[Confe
     if not data:
         return None
 
-    if not data.get("is_conference_cfp") or not data.get("submission_deadline"):
+    if not data.get("is_opportunity"):
+        return None
+    opp_type = data.get("opportunity_type")
+    if opp_type not in {"conference", "journal_issue", "funding_program"}:
+        opp_type = "conference"
+    # Needs SOME actionable deadline: a paper deadline for a CFP, an
+    # application deadline for a funding program (a search hit with no date
+    # is too often an evergreen round-up page to be worth tracking).
+    deadline_field = "funding_deadline" if opp_type == "funding_program" else "submission_deadline"
+    if not data.get(deadline_field):
         return None
 
     source_id = hashlib.sha1(url.encode()).hexdigest()[:16]
@@ -118,10 +137,12 @@ def extract_conference_record(result: dict, groq_api_key: str) -> Optional[Confe
         mode="unknown",
         topics=data.get("topics", []) or [],
         submission_deadline=data.get("submission_deadline"),
+        funding_deadline=data.get("funding_deadline"),
         conference_start=data.get("conference_start"),
         conference_end=data.get("conference_end"),
-        fee_info=data.get("fee_info"),
-        travel_support_info=data.get("travel_support_info"),
+        opportunity_type=opp_type,
+        # Cost/funding are NOT taken from this pass — extract_access.py
+        # verifies them (with a verbatim evidence quote) on the next step.
         first_seen=today_iso,
         last_verified=today_iso,
     )
@@ -164,7 +185,9 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
               "(set both in .env for local runs or as GitHub Actions secrets).")
         return []
 
-    queries = rotate_queries(
+    # priority_queries (free/funded-first searches) always run; the older
+    # rotating pool fills in behind them.
+    queries = list(search_cfg.get("priority_queries", [])) + rotate_queries(
         search_cfg.get("queries", []), search_cfg.get("max_queries_per_run", 8)
     )
 
@@ -193,6 +216,6 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
 if __name__ == "__main__":
     cfg = load_config()
     results = run(cfg)
-    print(f"Found {len(results)} conference record(s) via search:")
+    print(f"Found {len(results)} opportunity record(s) via search:")
     for r in results:
-        print(f"  {r.submission_deadline}  {r.title[:70]}  ({r.location})")
+        print(f"  [{r.opportunity_type}] {r.submission_deadline or r.funding_deadline}  {r.title[:70]}")

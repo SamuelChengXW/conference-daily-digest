@@ -71,6 +71,26 @@ def fuzzy_match(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> Op
     return None
 
 
+# Fields set by extract_access.py (one LLM check per record) — a routine
+# re-fetch from WikiCFP/search has no way to know them, so carry them
+# forward from the stored record unless the fresh record actually brings its
+# own verified access result (fetch_funding_programs re-checks every run).
+ACCESS_FIELDS = (
+    "fee_info", "travel_support_info", "cost_status", "funding_available",
+    "funding_type", "funding_details", "funding_deadline", "funding_url",
+    "eligibility", "evidence_url", "evidence_quote", "access_checked",
+)
+
+
+def carry_forward_access(record: ConferenceRecord, existing: ConferenceRecord) -> None:
+    if record.access_checked:
+        return
+    for name in ACCESS_FIELDS:
+        setattr(record, name, getattr(existing, name))
+    if existing.opportunity_type != "conference":
+        record.opportunity_type = existing.opportunity_type
+
+
 def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
     """Insert or update `record` into `db`. Returns 'new' or 'updated'."""
     key = record.dedup_key
@@ -89,6 +109,7 @@ def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
         # destructive on its own.
         record.user_status = existing.user_status
         record.user_notes = existing.user_notes
+        carry_forward_access(record, existing)
         db[key] = record
         return "updated"
 
@@ -106,6 +127,7 @@ def upsert(record: ConferenceRecord, db: dict[str, ConferenceRecord]) -> str:
         record.matched_topics = sorted(set(record.matched_topics) | set(existing.matched_topics))
         record.user_status = existing.user_status
         record.user_notes = existing.user_notes
+        carry_forward_access(record, existing)
         del db[match_key]
         db[key] = record
         return "updated"

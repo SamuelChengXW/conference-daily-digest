@@ -78,6 +78,23 @@ class ConferenceRecord:
     # drop a record from the email/website/main Sheet tab going forward.
     user_status: Optional[str] = None
     user_notes: Optional[str] = None
+    # Free & funded opportunity fields (2026-10-13 redesign, per user
+    # request: only show what's free, fee-waivable, or funded). Populated by
+    # extract_access.py, which follows registration/grant subpages and only
+    # trusts a classification backed by a verbatim quote from the fetched
+    # text. access_checked=None means "not yet checked by extract_access" —
+    # never shown until it is.
+    opportunity_type: str = "conference"  # "conference" | "journal_issue" | "funding_program"
+    cost_status: str = "unknown"  # "free" | "waivable" | "paid" | "unknown"
+    funding_available: bool = False
+    funding_type: Optional[str] = None  # e.g. "travel grant", "scholarship", "fee waiver"
+    funding_details: Optional[str] = None
+    funding_deadline: Optional[str] = None
+    funding_url: Optional[str] = None
+    eligibility: Optional[str] = None
+    evidence_url: Optional[str] = None
+    evidence_quote: Optional[str] = None
+    access_checked: Optional[str] = None
 
     def to_dict(self) -> dict:
         return asdict(self)

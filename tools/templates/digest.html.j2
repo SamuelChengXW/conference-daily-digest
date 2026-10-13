@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Conference &amp; CFP Digest</title>
+<title>Free &amp; Funded Opportunities</title>
 <style>
   :root { color-scheme: light dark; }
   body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
@@ -13,58 +13,73 @@
     body { color: #e8e8e8; background: #14161a; }
     .card { background: #1d2025 !important; border-color: #30343a !important; }
     a { color: #7db8ff !important; }
-    .muted { color: #9aa0a8 !important; }
+    .muted, .evidence { color: #9aa0a8 !important; }
   }
   h1 { font-size: 1.5rem; margin-bottom: 0.2em; }
-  .subtitle { color: #666; margin-top: 0; margin-bottom: 1.5em; font-size: 0.9rem; }
+  h2.section { font-size: 1.15rem; margin: 1.8em 0 0.6em; padding-bottom: 4px; border-bottom: 2px solid #e0e0e0; }
+  h2.section .count { font-weight: 400; color: #888; font-size: 0.9rem; }
+  .subtitle { color: #666; margin-top: 0; margin-bottom: 0.5em; font-size: 0.9rem; }
+  .toc { font-size: 0.88rem; margin-bottom: 1em; }
   .muted { color: #666; }
   .card { border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px; margin-bottom: 14px; }
-  .card h2 { font-size: 1.05rem; margin: 0 0 6px; }
-  .card h2 a { text-decoration: none; }
-  .card h2 a:hover { text-decoration: underline; }
-  .meta-row { font-size: 0.88rem; margin: 3px 0; }
-  .badge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 2px 9px;
+  .card h3 { font-size: 1.05rem; margin: 6px 0 6px; }
+  .card h3 a { text-decoration: none; }
+  .card h3 a:hover { text-decoration: underline; }
+  .meta-row { font-size: 0.88rem; margin: 3px 0; overflow-wrap: anywhere; }
+  .badge { display: inline-block; font-size: 0.72rem; font-weight: 600; padding: 2px 9px; margin: 0 2px 2px 0;
            border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
   .badge-high { background: #ffe0e0; color: #a30000; }
   .badge-medium { background: #fff3d6; color: #8a5a00; }
-  .badge-low { background: #e2f3e5; color: #1c6b2e; }
+  .badge-low, .badge-unknown { background: #eceff3; color: #4a5260; }
   .badge-region { background: #e0ecff; color: #1a4b9e; }
+  .badge-money { background: #e2f3e5; color: #1c6b2e; }
   @media (prefers-color-scheme: dark) {
+    h2.section { border-color: #30343a; }
     .badge-high { background: #4a1414; color: #ff9a9a; }
     .badge-medium { background: #4a3a10; color: #ffd27a; }
-    .badge-low { background: #16351f; color: #8fe0a3; }
+    .badge-low, .badge-unknown { background: #2a2f36; color: #b8c0cc; }
     .badge-region { background: #16294a; color: #9cbcff; }
+    .badge-money { background: #16351f; color: #8fe0a3; }
   }
+  .deadline { font-weight: 600; }
+  .evidence { font-size: 0.82rem; color: #555; font-style: italic; }
   .topics { font-size: 0.82rem; color: #555; }
   .footer-note { margin-top: 2.5em; font-size: 0.82rem; color: #888; }
-  .empty { padding: 2em 0; color: #666; }
+  .empty { padding: 0.5em 0 1em; color: #666; font-size: 0.9rem; }
 </style>
 </head>
 <body>
 {% endif %}
-<h1>Conference &amp; CFP Digest</h1>
-<p class="subtitle">Generated {{ generated_date }} &middot; energy, AI/ML, environment, engineering &amp; economics &middot; sorted by submission deadline</p>
+<h1>Free &amp; Funded Research Opportunities</h1>
+<p class="subtitle">Generated {{ generated_date }} &middot; only opportunities that are free, fee-waivable, or come with funding &middot; energy, AI/ML, engineering, economics &amp; policy, ESG, SDGs, sustainability</p>
+<p class="toc">{% for s in sections %}{{ s.title }}: <strong>{{ s.records | length }}</strong>{% if not loop.last %} &middot; {% endif %}{% endfor %}</p>
 
-{% if records %}
-{% for r in records %}
+{% for s in sections %}
+<h2 class="section">{{ s.title }} <span class="count">({{ s.records | length }})</span></h2>
+{% if s.records %}
+{% for r in s.records %}
 <div class="card">
-  <span class="badge badge-{{ r.urgency }}">{{ r.urgency }} urgency</span>
+  <span class="badge badge-{{ r.urgency }}">{% if r.urgency == "unknown" %}rolling / no date{% else %}{{ r.urgency }} urgency{% endif %}</span>
+  {% for b in r.badges %}<span class="badge badge-money">{{ b }}</span>{% endfor %}
   {% if r.region_match %}<span class="badge badge-region">📍 {{ r.region_match }}</span>{% endif %}
-  <h2><a href="{{ r.url }}">{{ r.title }}</a></h2>
-  <div class="meta-row"><strong>Submission deadline:</strong> {{ r.submission_deadline }}{% if r.notification_date %} &middot; <strong>Notification:</strong> {{ r.notification_date }}{% endif %}</div>
-  {% if r.conference_start %}<div class="meta-row"><strong>Conference dates:</strong> {{ r.conference_start }}{% if r.conference_end and r.conference_end != r.conference_start %} to {{ r.conference_end }}{% endif %}</div>{% endif %}
-  {% if r.location %}<div class="meta-row"><strong>Location:</strong> {{ r.location }} ({{ r.mode }})</div>{% endif %}
-  {% if r.fee_info %}<div class="meta-row"><strong>Fee:</strong> {{ r.fee_info }}</div>{% endif %}
-  {% if r.travel_support_info %}<div class="meta-row"><strong>Travel/accommodation:</strong> {{ r.travel_support_info }}</div>{% endif %}
+  <h3><a href="{{ r.url }}">{{ r.title }}</a></h3>
+  {% if r.funding_deadline %}<div class="meta-row deadline">Funding application deadline: {{ r.funding_deadline }}</div>{% endif %}
+  {% if r.submission_deadline %}<div class="meta-row"><strong>Submission deadline:</strong> {{ r.submission_deadline }}{% if r.notification_date %} &middot; <strong>Notification:</strong> {{ r.notification_date }}{% endif %}</div>{% endif %}
+  {% if r.conference_start %}<div class="meta-row"><strong>Event dates:</strong> {{ r.conference_start }}{% if r.conference_end and r.conference_end != r.conference_start %} to {{ r.conference_end }}{% endif %}</div>{% endif %}
+  {% if r.location %}<div class="meta-row"><strong>Location:</strong> {{ r.location }}{% if r.mode != "unknown" %} ({{ r.mode }}){% endif %}</div>{% endif %}
+  {% if r.opportunity_type != "funding_program" and r.fee_info %}<div class="meta-row"><strong>Cost:</strong> {{ r.fee_info }}</div>{% endif %}
+  {% if r.funding_available and r.funding_details %}<div class="meta-row"><strong>Funding:</strong> {{ r.funding_details | truncate(320) }}</div>{% endif %}
+  {% if r.eligibility %}<div class="meta-row"><strong>Eligibility:</strong> {{ r.eligibility }}</div>{% endif %}
+  {% if r.evidence_quote %}<div class="meta-row evidence">Source: “{{ r.evidence_quote | truncate(240) }}”{% if r.evidence_url %} &mdash; <a href="{{ r.evidence_url }}">check</a>{% endif %}</div>{% endif %}
   <div class="meta-row topics">Matched topics: {{ r.matched_topics | join(", ") if r.matched_topics else "—" }}</div>
-  <div class="meta-row"><a href="{{ r.cfp_url }}">Verify details on official CFP listing &rarr;</a></div>
 </div>
 {% endfor %}
 {% else %}
-<p class="empty">No conferences currently match your filters within the deadline window. Check back next week, or widen <code>config/filters.yaml</code>.</p>
+<p class="empty">{{ s.empty }}</p>
 {% endif %}
+{% endfor %}
 
-<p class="footer-note">Always double-check the submission deadline on the official CFP page before relying on it here — deadlines sourced from WikiCFP can occasionally be stale.{% if site_url %} Full history at <a href="{{ site_url }}">{{ site_url }}</a>.{% endif %}</p>
+<p class="footer-note">Each entry above is shown only because its official page states it is free, fee-waivable, or funded — the quoted source line is what that rests on. Terms change, so always confirm eligibility and deadlines on the linked page before applying. Paid conferences and ones whose cost couldn't be confirmed are tracked but not shown.{% if site_url %} Full list at <a href="{{ site_url }}">{{ site_url }}</a>.{% endif %}</p>
 {% if standalone_page %}
 </body>
 </html>

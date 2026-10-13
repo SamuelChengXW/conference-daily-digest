@@ -1,20 +1,30 @@
 # Conference Daily Digest
 
-A weekly, unattended pipeline that finds conferences and calls for papers
-(CFPs) relevant to an energy/engineering/AI research focus (renewable and
-general energy, power systems, energy storage/materials, energy policy/
-economics, engineering generally, AI/ML generally, plus adjacent
-environment/economics, with a ranking boost for Malaysia/Southeast Asia/
-Japan) and delivers them by email, a small GitHub Pages website, and
-(optionally) an actionable Google Sheet — with a dedicated Malaysia tab
-(including a broadened general-AI carve-out) fed by WikiCFP, a Serper.dev +
-Groq search source (covering Malaysia, Japan, general energy societies, and
-Malaysia's own event/statutory/professional-body systems), and Universiti
-Malaya's own event system via a Playwright-based scraper, with optional
-fee/travel/accommodation info extracted by Groq from each conference's
-official page.
+A weekly, unattended **Free & Funded Research Opportunities** tracker. It
+only shows opportunities a self-funded student can actually take up:
 
-Scope is **global and topic-first** — not restricted by conference location.
+- conferences that are **free** or **fee-waivable** (waivers or reduced fees
+  for students or developing countries),
+- conferences that offer **travel grants / scholarships / financial aid**,
+- **standalone funding programs** (travel grants, fellowships), and
+- **journal special issues with no publication fee (APC)**.
+
+Each entry is shown only if its official page *states* this, and the quoted
+sentence is shown alongside it. Paid conferences, and ones whose cost
+couldn't be confirmed, are tracked but never shown. (The tracker listed all
+relevant conferences until 2026-10-13, when it was narrowed to this at the
+user's request.)
+
+Topics: energy (renewable and general, power systems, storage/materials),
+engineering, AI/ML, economics and policy, ESG, the SDGs and sustainability,
+with a ranking boost for Malaysia/Southeast Asia/Japan. Delivered by email,
+a GitHub Pages website, and (optionally) a Google Sheet. Sources: WikiCFP,
+Serper.dev + Groq searches (free/funded-first queries plus Malaysia/Japan/
+energy-society sources), Universiti Malaya's event system (via Playwright),
+and curated funding-program pages and listings.
+
+Scope is **global and topic-first**: results are not restricted by
+conference location.
 
 See [`workflows/daily_conference_digest.md`](workflows/daily_conference_digest.md)
 for the full SOP (what each step does, and lessons learned from building it).
@@ -22,12 +32,16 @@ This README is just the setup checklist.
 
 ## How it works, in one line
 
-`.github/workflows/daily_digest.yml` runs `tools/run_pipeline.py` weekly,
-which fetches from WikiCFP, scores relevance by keyword against
-[`config/filters.yaml`](config/filters.yaml), dedupes against
-`data/conferences_db.json`, and renders + sends the result — no AI/agent
-involved at run time, since nobody's there to supervise it on an unattended
-cron.
+`.github/workflows/daily_digest.yml` runs `tools/run_pipeline.py` weekly. It
+gathers candidates (WikiCFP, search, UM Event System, funding programs),
+scores topic relevance against [`config/filters.yaml`](config/filters.yaml),
+dedupes against `data/conferences_db.json`, then has `tools/extract_access.py`
+read each relevant candidate's official page **and its registration/grant
+subpages** to decide whether it is free, fee-waivable or funded. A verdict
+only counts if the sentence it quotes is really on the page. Only eligible
+entries are rendered and sent. The LLM calls are bounded, single-purpose
+extraction steps inside deterministic scripts; no agent makes decisions at
+run time.
 
 ## One-time setup
 
@@ -68,35 +82,32 @@ That's it — after a clean manual run, the `schedule:` trigger in
 stepped down from daily → every 2 days → weekly as run time grew with more
 sources/topics added; still well within the 180-day deadline window).
 
-## Optional: Google Sheet (choose/dismiss conferences, track submissions)
+## Optional: Google Sheet (choose/dismiss opportunities, track submissions)
 
-Four tabs, all auto-managed:
+Tabs, all auto-managed. Every tab except Participated shows only free,
+fee-waivable or funded entries, the same set as the email and website:
 
-- **Conferences** — the current/upcoming list (same as the email/website).
-  A conference **automatically drops off once its deadline passes** — no
-  manual cleanup. Has a **Status dropdown** per row: Interested / Planned
-  to Submit / In Progress / Submitted / Accepted / Rejected / Dismissed.
-  Set a row to **Dismissed** to permanently hide that conference from the
-  Conferences tab, the website, and the email — not just visually in the
-  Sheet, it stays hidden on every future run too.
-- **Malaysia** — every Malaysia-located conference already in Conferences,
-  plus a broadened carve-out of general AI/ML/CS conferences located in
-  Malaysia that the energy-topic scoring would otherwise never surface at
-  all (this carve-out only affects this tab — the main Conferences/website/
-  email stay energy-topic-first). Populated by WikiCFP plus the optional
-  Malaysia search source below.
-- **Free Submission** — added per user request (tight budget): a strict
-  subset of Conferences, filtered to conferences the Fee column has
-  **confirmed** have no submission cost (a deterministic check on the
-  already-extracted fee text — free words like "no submission fee" without
-  a currency amount attached; requires the fee/travel extraction below to
-  already have run for that conference). A conference whose fee is still
-  "Not stated" or hasn't been checked yet simply isn't here yet — it's
-  never assumed free. Grows automatically as more conferences get checked.
-- **Participated** — a permanent log of anything you've ever marked
-  Submitted / Accepted / Rejected, "so I can remember which one I had
-  submitted." Unlike Conferences, rows here are **never** dropped just
-  because the deadline passed.
+- **Free to Submit**: free or fee-waivable conferences.
+- **Funding Available**: paid conferences that offer travel grants,
+  scholarships or financial aid.
+- **Funding Programs**: standalone travel grants and fellowships.
+- **Journal Calls (No APC)**: special issues with no publication fee.
+- **Malaysia**: eligible Malaysia-located entries, plus eligible general
+  AI/ML/CS conferences located in Malaysia.
+- **Participated**: a permanent log of anything you've ever marked
+  Submitted / Accepted / Rejected. Rows here are **never** dropped when a
+  deadline passes.
+
+Entries **drop off automatically once their deadline passes**. Each row has
+**Cost**, **Funding**, **Next Deadline** (the earlier of the grant deadline
+and the paper deadline), **Eligibility** and **Evidence** (the quoted source
+sentence plus link). There is also a **Status dropdown**: Interested /
+Planned to Submit / In Progress / Submitted / Accepted / Rejected /
+Dismissed. **Dismissed** hides an entry from every tab, the website and the
+email, on every future run.
+
+The pre-2026-10-13 tabs (**Conferences**, **Free Submission**) are read once
+so any Status/Notes you set there carry over, then deleted.
 
 `Notes` is a free-text column on every tab for your own reference — never
 overwritten by the pipeline.
@@ -130,11 +141,10 @@ Setup (one-time, ~5 minutes):
    - `GOOGLE_SERVICE_ACCOUNT_JSON` — paste the **entire contents** of the
      downloaded JSON file.
    - `GOOGLE_SHEET_ID` — the ID from step 7.
-9. Re-run the workflow manually — the sheet should populate with
-   `Conferences`, `Malaysia`, and `Participated` tabs, each with the Status
-   dropdown already applied.
+9. Re-run the workflow manually. The sheet should populate with the tabs
+   listed above, each with the Status dropdown already applied.
 
-## Optional: search source (Malaysia + Japan + energy societies) + fee/travel/accommodation info
+## Optional: search source, cost/funding verification, funding programs
 
 Two more integrations, both optional and independent of each other and of
 the Google Sheet above — the pipeline skips whichever secrets are unset:
@@ -153,10 +163,8 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   `search_api.queries`, grouped by category) find candidate pages, and an
   LLM reads each one to confirm it's a real CFP and extract structured
   fields — configured to never guess a submission deadline that isn't
-  stated. Results feed into the same relevance scoring as WikiCFP records,
-  so Malaysia-located results land on the Malaysia tab and everything else
-  competes for the main Conferences tab on topic relevance exactly like a
-  WikiCFP result would. The query list is now longer than one run's budget
+  stated. Results go through the same relevance scoring and cost/funding
+  verification as WikiCFP records. The query list is now longer than one run's budget
   (`search_api.max_queries_per_run`) — `fetch_search_api.py` rotates a
   same-sized window through the full list by day-of-year, so the whole pool
   gets covered over several weeks rather than each run's spend/run time
@@ -165,12 +173,27 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   not estimated) since each week's window only advances a few positions,
   not a clean 14-item step. Slower discovery than when this ran daily is
   the direct tradeoff of the reduced cadence, not a bug.
-- **Fee/travel/accommodation extraction** (`GROQ_API_KEY` only) — WikiCFP
-  almost never states whether a conference charges a fee or covers travel
-  for presenters. For each conference not yet checked, the LLM reads its
-  official page and extracts only what's actually stated there — runs once
-  per conference (cached via `data/conferences_db.json`), not once per day,
-  so usage scales with new conferences, not the whole archive.
+- **Cost/funding verification** (`tools/extract_access.py`, `GROQ_API_KEY`
+  only). This is required for anything to appear: without it, nothing can
+  be confirmed free or funded. For each relevant candidate, it fetches the
+  official page plus up to 3 linked registration/fee/grant/award subpages,
+  keeps only the text around fee and funding keywords, and asks Groq for a
+  verdict with a verbatim quote. If the quote isn't actually on the page,
+  the verdict is downgraded to "unknown" and the entry isn't shown. Capped
+  at 30 entries per run; the rest carry over to the next run. "Unknown"
+  results are re-checked after 45 days, because registration pages often
+  go up late.
+- **Search priority queries** (`search_api.priority_queries`) run every
+  week and look for free and funded opportunities directly: travel grants,
+  fee waivers, free registration, ESG/SDG calls with funding, no-APC
+  journal calls, and Japan graduate travel grants.
+- **Funding programs** (`tools/fetch_funding_programs.py`, no key needed).
+  Config's `funding_programs` lists single program pages (IEEE PELS student
+  travel grants, IEEE PES General Meeting student program), which are
+  checked by the verifier above, and the Terra Viva Grants travel & mobility
+  listing. That listing is parsed without an LLM and covers MDPI's travel
+  awards, whose own pages block scripts. Items are limited to
+  worldwide/Asia-eligible ones, then filtered by topic relevance.
 - **UM Event System** (`tools/fetch_um_events.py`, `GROQ_API_KEY` +
   `playwright install chromium`) — Universiti Malaya's own event management
   system (665 total events, 45 for 2026 alone as of 2026-08-09). Unlike
@@ -182,7 +205,7 @@ the Google Sheet above — the pipeline skips whichever secrets are unset:
   (`fetch_wikicfp.prefilter_relevant()`, reused as-is) before spending a
   Groq call confirming each candidate.
 
-Both use **Groq's free API** (`tools/llm_extract.py`, `tools/fetch_search_api.py`)
+All Groq calls go through **Groq's free API** (shared helpers in `tools/llm_extract.py`)
 — Gemini was tried first since it also has a free tier, but the account hit
 a persistent zero-quota restriction unrelated to which key or model was
 used (two separate keys, identical failure — see the workflow doc). Groq's
@@ -197,10 +220,10 @@ Setup:
 2. **Groq**: sign up free at [console.groq.com](https://console.groq.com)
    (no card required), create an API key under API Keys.
 3. Add repo secrets: `SERPER_API_KEY` and `GROQ_API_KEY`.
-4. Re-run the workflow manually to confirm both come through — check the
-   Action log for "Google Sheet published" and the Malaysia tab for new
-   rows, and check a Conferences-tab entry for a populated Fee /
-   Travel/Accommodation Support column.
+4. Re-run the workflow manually to confirm both come through. Check the
+   Action log for the "extract_access" step's per-entry verdicts and the
+   section counts, and check that Sheet rows have a populated Evidence
+   column.
 
 ## Local development
 
@@ -228,12 +251,18 @@ Edit [`config/filters.yaml`](config/filters.yaml) — no code changes needed:
   how two false-positive categories were fixed during initial testing).
 - **Missing relevant results?** Add keywords to `topics`, add another entry
   to `wikicfp_categories` (this accepts arbitrary strings, not just real
-  WikiCFP categories — see the comment above it in the file), or lower
-  `min_relevance_score`.
+  WikiCFP categories — see the comment above it in the file), add a
+  `search_api.priority_queries` entry, or add a page to `funding_programs`.
+  Scores are matched topic weight divided by `score_denominator`, so adding
+  topics never lowers existing scores.
 - **Deadline window too short/long?** Adjust `deadline_window_days` (default
-  180) — applies to the email, website, AND the Sheet's Conferences tab (all
-  three always show the same set). The Sheet's Participated tab is the
+  180). It applies to the email, the website and the Sheet's section tabs,
+  which always show the same set. The window uses the earlier upcoming
+  deadline (grant application or paper submission). The Sheet's Participated tab is the
   exception: it ignores this setting entirely, by design.
+- **Expect something to be free/funded but it isn't shown?** Its page may not
+  say so in a way the verifier can quote. Check `cost_status` and
+  `evidence_quote` for it in `data/conferences_db.json`.
 - **A specific conference/organizer is low-quality?** Add it to
   `excluded_organizers` or `excluded_keywords`.
 - **Want a conference gone for good?** Set its Status to `Dismissed` in the

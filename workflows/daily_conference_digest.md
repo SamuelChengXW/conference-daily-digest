@@ -1,29 +1,38 @@
-# Workflow: Daily Conference & CFP Digest
+# Workflow: Free & Funded Research Opportunities Digest
 
 ## Objective
 
-Every day, find conferences and calls for papers (CFPs) relevant to the
-user's Master's research (energy science — renewable/power systems, energy
-storage/materials, energy policy/economics, AI/ML applied to energy — plus
-adjacent environment/engineering/economics topics, with a ranking boost for
-Malaysia/Southeast Asia), and deliver them as:
+Every week, find academic opportunities the user can take up **without
+paying out of pocket**, relevant to their Master's research, and deliver
+them as an email digest, an always-current website (GitHub Pages,
+`docs/index.html`), and a Google Sheet they can act on (optional).
 
-1. An email digest.
-2. An always-current website (GitHub Pages, `docs/index.html`).
-3. A Google Sheet you can act on (optional) — see step 5 under "Steps" below.
+Since **2026-10-13** (user request: "too many paid conferences"), the
+digest shows **only**:
 
-Scope is **global and topic-first, not location-restricted** — paper
-submission isn't limited by the author's location, so we don't filter by
-where the conference is held. Location is shown in each entry purely as
-travel-planning info.
+1. **Free or fee-waivable conferences**: no registration/submission fee,
+   or an explicitly offered waiver or reduced fee (e.g. students,
+   developing countries). The user chose to include "waivable", not just
+   strictly $0.
+2. **Conferences with funding**: organizer travel grants, scholarships,
+   financial aid.
+3. **Standalone funding programs**: travel grants and fellowships not
+   tied to one conference.
+4. **Journal special issues with no publication fee (APC).**
 
-Originally built weekly, switched to daily per user request, then stepped
-back down (daily -> every 2 days on 2026-08-10 -> weekly on 2026-08-19) as
-run time grew to ~15-29 min with more sources/topics added. Any of these
-cadences is well within WikiCFP's `robots.txt` politeness terms (the 5s
-`Crawl-delay` is respected regardless of how often the whole crawl runs) —
-this only ever affected how often the crawl happens, not how aggressively
-per-request.
+Paid entries, and entries whose cost couldn't be confirmed, stay in
+`data/conferences_db.json` (for dedup and history) but are never shown.
+
+Topics: energy (renewable and general, power systems, storage/materials),
+engineering, AI/ML, and, added 2026-10-13, **economics and policy, ESG, the
+SDGs and sustainability**. Malaysia/Southeast Asia/Japan get a ranking
+boost. Scope is **global and topic-first**: paper submission isn't limited
+by the author's location, so location is shown for travel planning only,
+never used as a filter.
+
+The tracker ran daily at first, then every 2 days (2026-08-10), then
+weekly (2026-08-19), as run time grew to ~15-29 min. WikiCFP's 5s
+`Crawl-delay` is respected regardless of cadence.
 
 ## Trigger
 
@@ -46,146 +55,126 @@ sources/topics — see that file for the exact schedule) and on manual
 
 ## Steps (executed by `tools/run_pipeline.py`)
 
-Because this runs unattended on a schedule — no agent or human present to
-make live judgment calls — every step below is a deterministic Python
-function; the two steps that call an LLM (`fetch_search_api.py`,
-`llm_extract.py`) do so as a bounded, single-purpose API call inside a
-deterministic script, not as an agent making its own decisions about what
-to do next.
+Because this runs unattended on a schedule, with no agent or human present
+to make live judgment calls, every step below is a deterministic Python
+function. The steps that call an LLM (`fetch_search_api.py`,
+`fetch_um_events.py`, `extract_access.py`) each make a bounded,
+single-purpose API call inside a deterministic script. No agent decides
+what to do next.
 
-1. **`tools/fetch_wikicfp.py`** — Pull WikiCFP category RSS feeds (both
-   configured in `filters.yaml`). Cheaply prefilter on RSS title/description
-   before spending a request on each item's detail page (which has the
-   actual deadline data, via hCalendar microformat spans). Respects
-   WikiCFP's `robots.txt` `Crawl-delay: 5` with a hard 5s sleep between
-   every HTTP request to the site, and retries transient network errors
-   with backoff before giving up on just that one item (see "Known edge
-   cases").
+1. **`tools/fetch_wikicfp.py`**: pulls WikiCFP category RSS feeds
+   (`wikicfp_categories`), prefilters on RSS title/description, then
+   fetches detail pages for deadlines (hCalendar microformat). Respects
+   `Crawl-delay: 5`, retries transient errors, and stops at a 20-min
+   wall-clock budget. WikiCFP has **no cost/funding data**, so it is only a
+   candidate source: its records appear only after step 8 confirms them.
 
-2. **`tools/fetch_search_api.py`** *(optional — skips gracefully if
-   `SERPER_API_KEY`/`GROQ_API_KEY` aren't set)* — Finds Malaysian
-   university conferences (UM/UKM/USM/UPM/UTM etc.) that WikiCFP doesn't
-   index, per user request. Runs targeted Serper.dev search queries
-   (`config/filters.yaml`'s `search_api.queries`, capped at
-   `max_queries_per_run`), then for each result fetches the actual page and
-   asks Groq (`openai/gpt-oss-20b`, JSON mode) to determine whether it's a
-   genuine CFP and extract title/dates/deadline/location/topics —
-   instructed explicitly not to guess a deadline that isn't stated, and to
-   drop the candidate rather than fabricate one. Direct scraping of these
-   sources was investigated and rejected first (see "Known edge cases") —
-   this is the sustainable replacement.
+2. **`tools/fetch_search_api.py`** *(needs `SERPER_API_KEY` +
+   `GROQ_API_KEY`)*: first, `search_api.priority_queries` run **every run**
+   and search for free and funded opportunities directly (travel grants,
+   fee waivers, free registration, ESG/SDG calls with funding, no-APC
+   journal calls, Japan graduate travel grants). Then the older
+   Malaysia/Japan/energy-society CFP pool rotates behind them through
+   `rotate_queries()` (`max_queries_per_run`, cut 14→4 on 2026-10-13 to
+   keep total spend about the same). Groq classifies each result page as
+   `is_opportunity` plus `opportunity_type` (conference / journal_issue /
+   funding_program) and extracts dates. It requires a paper deadline for a
+   CFP, or an application deadline for a funding program. Cost/funding is
+   **not** taken from this pass; step 8 verifies it.
 
-3. **`tools/normalize_records.py`** — Map raw WikiCFP items into the shared
-   `ConferenceRecord` schema (`tools/common.py`). Cleans HTML-entity-escaped
-   titles, infers `mode` (online/hybrid/onsite) from the location text,
-   picks the submission deadline out of WikiCFP's milestone list. Drops any
-   record with no extractable submission deadline — can't rank or window-
-   filter something with no deadline. (Search-API records skip this step —
-   the LLM's structured extraction already produces clean fields — and are
-   concatenated in directly.)
+3. **`tools/fetch_um_events.py`** *(needs `GROQ_API_KEY` + Playwright)*:
+   Universiti Malaya's event system (see the edge-case entries below).
+   Candidate source only, same as WikiCFP.
 
-4. **`tools/classify_relevance.py`** — Deterministic keyword scoring against
-   `filters.yaml`'s topic list (weighted, normalized to 0–1) plus a hard
-   exclusion check (organizer/keyword blocklist for known low-quality
-   "conference mill" listings). Applies uniformly to WikiCFP and
-   search-API-sourced records alike, so region boost / Malaysia-AI carve-out
-   scoring is consistent regardless of source.
+4. **`tools/fetch_funding_programs.py`** *(no key needed)*: config's
+   `funding_programs`:
+   - `pages`: single program pages (IEEE PELS student travel grants, IEEE
+     PES GM student program), emitted unchecked so step 8 verifies them,
+     and re-checked every 30 days.
+   - `listings`: the Terra Viva Grants travel & mobility tag, parsed
+     **without an LLM**. Each item is already a structured summary: a
+     title, an official link, region/deadline-month tags, and a body with a
+     stated deadline. Only `worldwide`/Asia-tagged items are kept, and
+     journalism fellowships are excluded. Items are funding by
+     construction, so they are emitted already verified, with the
+     money/award sentence as the evidence quote.
 
-5. **`tools/dedupe_and_store.py`** — Merge into `data/conferences_db.json`.
-   Exact match on WikiCFP's stable `eventid` first; fuzzy title match
-   (rapidfuzz, threshold 90) as a fallback, **gated by matching year** so
-   annual recurrences (e.g. "HEEPS 2026" vs "HEEPS 2027") don't wrongly
-   merge. New records get `first_seen` set; existing ones get
-   `last_verified` bumped and their mutable fields refreshed. Deliberately
-   preserves `user_status`/`user_notes` **and `fee_info`/`travel_support_info`**
-   from the existing record on every re-fetch (see "Known edge cases") — a
-   routine daily re-crawl must never silently erase a Status you set in the
-   Sheet, or force a re-run LLM extraction for a conference already checked.
+5. **`tools/normalize_records.py`**: maps raw WikiCFP items into the shared
+   `ConferenceRecord` schema (`tools/common.py`). Other sources already
+   produce records and are concatenated in directly.
 
-6. **`tools/llm_extract.py`** *(optional — skips gracefully if
-   `GROQ_API_KEY` isn't set)* — Fee/travel/accommodation extraction, per
-   user request: WikiCFP almost never states this, so for records that
-   don't already have `fee_info`/`travel_support_info` set, fetches the
-   conference's official homepage and asks Groq (`openai/gpt-oss-20b`, JSON
-   mode) to extract only what the page actually states, with an explicit
-   not-stated fallback rather than guessing. **Only runs for new records**
-   — step 5's field-preservation is what makes that safe — so usage scales
-   with new-conferences-per-day, not total-conferences-per-day.
+6. **`tools/classify_relevance.py`**: deterministic keyword scoring. The
+   score is matched topic weight divided by a **fixed** `score_denominator`
+   (3.0), plus `region_boost`, plus an exclusion blocklist. The haystack is
+   title + tags + location + `funding_details`.
 
-7. **`tools/publish_sheet.py`** *(optional — skips gracefully if
-   `GOOGLE_SERVICE_ACCOUNT_JSON`/`GOOGLE_SHEET_ID` aren't set)* — Runs
-   **before** `filter_and_rank.py` on purpose: it reads whatever Status/
-   Notes are currently in the Sheet's "Conferences" tab and writes them onto
-   the matching records' `user_status`/`user_notes` (then immediately
-   persists that to `data/conferences_db.json`), so a Status you set
-   yesterday — including `Dismissed` — is already in effect for *today's*
-   email/website, not just the Sheet. Reads/reconciles Status+Notes across
-   the Conferences, Malaysia, AND Free Submission tabs (`merge_existing_rows()`,
-   earlier-listed tabs taking priority on conflicts) before writing, since a
-   free Malaysia energy conference legitimately appears on all three.
-   Publishes four tabs:
-   - **Conferences** — the same windowed, non-expired, non-Dismissed list
-     as the email/website (via `filter_and_rank.run()`). A conference drops
-     off this tab automatically once its deadline passes — no manual
-     cleanup. Has a Status dropdown (data validation): Interested / Planned
-     to Submit / In Progress / Submitted / Accepted / Rejected / Dismissed.
-   - **Malaysia** *(added per user request)* — every Malaysia-located
-     conference already in Conferences, PLUS a broadened carve-out
-     (`classify_relevance.apply_malaysia_ai_carveout`,
-     `filter_and_rank.malaysia_tab`) of general AI/ML/CS conferences located
-     in Malaysia that the energy-topic scoring would otherwise never surface
-     at all — this carve-out is deliberately NOT gated on any energy
-     relevance, and exists ONLY on this tab, never leaking into
-     Conferences/website/email. Required a `prefilter_relevant()` change in
-     `fetch_wikicfp.py` too: without it, a Malaysia-AI listing with zero
-     energy-topic keywords would never survive the pre-detail-fetch filter
-     to reach classification in the first place.
-   - **Free Submission** *(added per user request, 2026-08-10 — tight
-     budget)* — a strict subset of Conferences
-     (`filter_and_rank.free_tab`/`is_confirmed_free`): only conferences
-     whose already-extracted `fee_info` text has been deterministically
-     confirmed free (a regex, not a second LLM call — see
-     `filter_and_rank.py`'s `_FREE_RE`/`_CURRENCY_RE`, validated against
-     every real non-"Not stated" `fee_info` value in the live DB before
-     shipping). Requires `llm_extract.py`'s fee/travel extraction to have
-     already run for a conference — "Not stated" or not-yet-checked isn't
-     assumed free, it just doesn't appear here yet.
-   - **Participated** — a permanent log of anything ever marked Submitted /
-     Accepted / Rejected. Unlike Conferences, entries here are never
-     dropped just because the deadline passed — "which ones did I actually
-     submit to" needs to survive past its own window.
-   Auth is a Google Cloud service account (not OAuth), chosen for the same
-   reason as Resend over Gmail SMTP: no human present to handle interactive
-   re-consent on an unattended cron.
+7. **`tools/dedupe_and_store.py`**: merges into `data/conferences_db.json`
+   (exact `source:source_id` match, then a fuzzy title match gated by
+   year). It preserves `user_status`/`user_notes`, **and all
+   cost/funding/evidence fields** (`ACCESS_FIELDS`), unless the fresh
+   record carries its own verified result (funding listings do).
 
-8. **`tools/filter_and_rank.py`** — Keep records with `relevance_score >=
-   min_relevance_score`, `user_status != "Dismissed"`, and a submission
-   deadline inside `deadline_window_days` (default 180, today or later).
-   Sort by deadline ascending. Feeds the email, the website, AND the
-   Sheet's Conferences tab — all three are always in sync. Its
-   `malaysia_tab()` sibling feeds only the Sheet's Malaysia tab (see step 7).
+8. **`tools/extract_access.py`** *(needs `GROQ_API_KEY`; nothing can be
+   shown without it)*: the core of the tracker. For relevant, in-window
+   records not yet checked:
+   1. Fetch the official page, plus up to 3 same-domain subpages whose
+      link text or URL suggests registration/fee/grant/travel/award/
+      scholarship (strong terms ranked first).
+   2. Reduce each page to ±400-char windows around fee/funding keywords
+      (deterministic, ≤5,000 chars total, to stay under Groq's 8k TPM).
+   3. Ask Groq for `cost_status` (free/waivable/paid/unknown),
+      `funding_available`, type, deadline, eligibility, and a **verbatim
+      evidence quote**.
+   4. **Verify the quote is literally in the fetched text.** If it isn't,
+      downgrade to `unknown`/not funded.
+   5. Cross-check a "free" verdict against a currency-amount regex.
 
-9. **`tools/render_digest.py`** — Render the same ranked list into the email
-   HTML body and `docs/index.html` (GitHub Pages source), from the shared
-   Jinja2 template at `tools/templates/digest.html.j2`.
+   Capped at 30 records and 15 min per run; the rest carry over. A Groq
+   failure leaves the record unchecked (not "unknown"), so it is retried.
+   "Unknown" results are re-checked after 45 days.
 
-10. **`tools/send_email.py`** — Send via Resend's API (send-to-self sandbox
-    mode, no domain verification needed). Chosen over Gmail SMTP because CI's
-    rotating IPs are a known trigger for Google security holds on unattended
-    SMTP logins — a failure mode with no human present to clear it.
+9. **`tools/publish_sheet.py`** *(optional)*: runs **before** step 10 on
+   purpose. It reads Status/Notes from every tab (plus, once, the legacy
+   Conferences / Free Submission tabs, which are then deleted), persists
+   them to the DB, then writes these tabs: Free to Submit, Funding
+   Available, Funding Programs, Journal Calls (No APC), Malaysia
+   (eligible-only, incl. the Malaysia-AI carve-out), and Participated
+   (permanent log). Auth is a service account, so no interactive
+   re-consent is needed on the cron.
 
-11. *(Handled by the GitHub Actions workflow, not the Python pipeline)*:
-    commit `data/conferences_db.json` and `docs/` back to `main` so state
-    persists across runs and GitHub Pages picks up the update.
+10. **`tools/filter_and_rank.py`**: keeps records that are
+    `is_eligible()` (free / waivable / funded), not excluded, not
+    Dismissed, at or above `min_relevance_score`, and whose
+    **`effective_deadline()`** (the nearest upcoming of funding deadline
+    and submission deadline) is within `deadline_window_days`. Funding
+    programs with no deadline (rolling) stay visible while their source
+    still lists them (seen within 60 days). `sections()` splits the result
+    into free / funded / programs / journals. The same function feeds the
+    email, the website, and the Sheet tabs.
+
+11. **`tools/render_digest.py`**: renders the sections into the email body
+    and `docs/index.html` (`tools/templates/digest.html.j2`).
+
+12. **`tools/send_email.py`**: sends via Resend (sandbox send-to-self).
+
+13. *(GitHub Actions, not Python)*: commits `data/conferences_db.json`
+    and `docs/` back to `main`.
 
 ## Output format
 
-Each digest entry: title (linked to the official conference site),
-submission deadline, notification date (if known), conference dates,
-location + mode, matched topics, urgency badge (high: ≤14 days, medium:
-≤45 days, low: beyond that), and a link back to the WikiCFP listing with a
-"verify before submitting" note — deadlines sourced from an aggregator can
-occasionally be stale.
+Four sections, each with a count and an empty-state message. Each entry
+shows:
+- badges: FREE / FEE WAIVER / NO APC / the funding type / region, plus
+  urgency (based on the nearest actionable deadline: high ≤14 days,
+  medium ≤45 days)
+- title (linked to the official site)
+- the funding application deadline (highlighted) and the submission
+  deadline
+- event dates, location, cost summary, funding details, and eligibility
+- **"Source: <verbatim quote> — check"**, linked to the page it came from
+
+The footer reminds the reader to confirm terms on the linked page before
+applying.
 
 ## Known edge cases / lessons learned
 
@@ -574,6 +563,43 @@ occasionally be stale.
   even if it had a lower relevance score or fewer matched topics than the
   one it replaced. Fixed to take `max(scores)` and the *union* of matched
   topics on merge.
+
+- **Redesigned into a free & funded tracker (2026-10-13), and why the old
+  fee extraction couldn't support it.** The user asked to drop paid
+  conferences and track only free, fee-waivable or funded opportunities,
+  plus standalone grants and no-APC journal calls. A first check of the
+  live DB showed a simple filter wasn't possible. Of 228 stored records,
+  the old homepage-only `llm_extract.py` had found a fee for just **10**
+  and travel support for just **3**. 120 were "Not stated" and 98 were
+  never checked. Fees and grants almost always live on a Registration /
+  Student Travel Grant / Financial Aid **subpage**. For example, IEEE PES
+  APPEEC 2026's grant is at `/student-travel-grant-support/`, which its CFP
+  page links to. Filtering the existing data would have left ~2 entries.
+  Changes made:
+  - `extract_access.py` follows subpages, with strong-term links ranked
+    first. Before that ranking, APPEEC's grant page was reached only after
+    camera-ready and author-instructions links had used up the slots.
+  - Every verdict must carry a verbatim quote, checked by substring match.
+    An LLM "free" with no matching quote is downgraded. This matters more
+    now, because a false "free" is the one error that would mislead the
+    user here.
+  - Discovery gained free/funded-first priority queries and a
+    funding-program source.
+  - Scoring moved to a fixed `score_denominator`. With the old
+    sum-of-weights denominator, adding four topic groups would have pushed
+    a single full-weight match from 0.116 to ~0.08, silently under the 0.10
+    cutoff.
+  - MDPI's travel-award pages (Sustainability/Energies/Climate) return 403
+    to scripts. Terra Viva Grants mirrors them on a robots.txt-permitted
+    listing, so that is used instead.
+  - The old Free Submission regex (`_FREE_RE`/`_CURRENCY_RE`) was kept as a
+    cross-check on the LLM verdict, not as the decision itself.
+  - The legacy Conferences / Free Submission Sheet tabs are migrated
+    (Status/Notes read once) and then deleted.
+  - Bare "sustainability"/"sustainable"/"climate" keywords were previously
+    rejected as noisy. The user asked for sustainability coverage, so they
+    are now in, on the reasoning that the free/funded gate keeps the cost
+    of a false-positive topic match low.
 
 ## Deferred (not built yet — revisit after a stretch of clean runs)
 

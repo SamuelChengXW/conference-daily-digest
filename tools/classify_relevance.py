@@ -17,16 +17,24 @@ from common import ConferenceRecord, TMP_DIR, load_config, read_json, write_json
 def score_keyword_match(record: ConferenceRecord, config: dict) -> tuple[float, list[str]]:
     """Return (score 0-1, matched_topic_names).
 
-    Score = sum of weights of topics with >=1 keyword hit, normalized by the
-    sum of all topic weights. Searches the title, WikiCFP categories, and
-    location text.
+    Score = sum of weights of topics with >=1 keyword hit, divided by
+    config's score_denominator (capped at 1). Searches the title, WikiCFP
+    categories, location text, and funding_details.
     """
     haystack = " ".join(
-        [record.title or "", " ".join(record.topics or []), record.location or ""]
+        [record.title or "", " ".join(record.topics or []), record.location or "",
+         # Funding-program listing items (fetch_funding_programs) carry their
+         # description here — their titles alone rarely name the field.
+         record.funding_details or ""]
     ).lower()
 
     topics_cfg = config.get("topics", [])
-    total_weight = sum(t.get("weight", 1.0) for t in topics_cfg) or 1.0
+    # Fixed denominator (config score_denominator) rather than the sum of
+    # all topic weights: with the sum, every new topic group silently
+    # lowered every existing single-topic score — adding the ESG/SDG/
+    # economics groups (2026-10-13) would have pushed a lone full-weight
+    # match from 0.116 to ~0.08, under min_relevance_score.
+    total_weight = config.get("score_denominator") or sum(t.get("weight", 1.0) for t in topics_cfg) or 1.0
 
     matched = []
     matched_weight = 0.0

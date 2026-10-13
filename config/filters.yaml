@@ -1,5 +1,12 @@
-# Filtering/scoring rules for the daily conference digest.
+# Filtering/scoring rules for the Free & Funded Opportunities digest.
 # Edit this file to tune what shows up — no code changes needed.
+#
+# Since 2026-10-13 (user request), the digest ONLY shows opportunities that
+# are free, fee-waivable, or come with funding (travel grants, scholarships,
+# standalone funding programs, no-APC journal calls) — see
+# tools/extract_access.py and filter_and_rank.is_eligible(). Everything
+# below decides which topics are relevant and where candidates come from;
+# the free/funded gate is applied on top of it.
 #
 # Scope: global, topic-first. We do NOT filter by location — a conference in
 # any country is fair game as long as the topic is relevant. Location is kept
@@ -126,6 +133,55 @@ topics:
       - generative ai
       - large language model
 
+  # Added 2026-10-13 per user request: economics, policy, ESG, SDGs and
+  # sustainability as first-class topics.
+  - name: "Economics & policy"
+    weight: 1.0
+    keywords:
+      - economics
+      - public policy
+      - policy studies
+      - sustainable finance
+      - climate finance
+      - green finance
+      - finance and sustainability
+
+  - name: "ESG"
+    weight: 1.0
+    keywords:
+      - esg
+      - environmental, social and governance
+      - environmental social governance
+      - sustainability reporting
+      - corporate sustainability
+      - corporate social responsibility
+      - csr
+      - impact investing
+      - responsible investment
+
+  - name: "SDGs"
+    weight: 1.0
+    keywords:
+      - sustainable development goals
+      - sdg
+      - agenda 2030
+
+  - name: "Sustainability"
+    weight: 1.0
+    # Bare "sustainability"/"sustainable"/"climate" were deliberately kept
+    # OUT of the topic list before (bare "sustainability" matched a
+    # humanities seminar on "Borders and Sustainability" in testing). The
+    # user explicitly asked for sustainability coverage on 2026-10-13, so
+    # they're in now at full weight, accepting that noise. The free/funded
+    # gate means a false-positive match still has to be free or funded to
+    # show up at all, which keeps the cost of that noise low.
+    keywords:
+      - sustainability
+      - sustainable
+      - climate
+      - net zero
+      - low carbon
+
   - name: "General environment / engineering / economics"
     weight: 0.6
     keywords:
@@ -194,6 +250,14 @@ wikicfp_categories:
   - nuclear energy
   - machine learning
   - data science
+  # Economics / policy / ESG / SDGs / sustainability (2026-10-13).
+  - esg
+  - sdg
+  - sustainable development
+  - public policy
+  - sustainable finance
+  - corporate governance
+  - corporate social responsibility
   # Malaysia / Southeast Asia / Japan — region ranking boost (region_boost
   # below) applies on top of these, but they're also just a real discovery
   # lever: a conference tagged "malaysia" won't necessarily also be tagged
@@ -297,12 +361,18 @@ malaysia_ai_keywords:
 # without going so far out that deadlines are unreliable/provisional.
 deadline_window_days: 180
 
-# Minimum keyword-match score (0-1) to keep a record. Records below this are
-# dropped as noise rather than sent/published. Lowered from 0.15 so a
-# General-environment/engineering/economics-only match (weight 0.6, scores
-# ~0.10) isn't dropped outright — it'll still rank near the bottom of the
-# digest, just not excluded entirely.
-min_relevance_score: 0.10
+# Relevance score = (sum of matched topic weights) / score_denominator,
+# capped at 1. A FIXED denominator (2026-10-13) instead of the sum of all
+# topic weights: with the sum, every new topic group silently lowered every
+# existing score — adding the ESG/SDG/economics groups would have pushed a
+# single full-weight match from 0.116 to ~0.08, under the old 0.10 cutoff.
+# With 3.0: one full-weight topic = 0.33, the 0.6 catch-all alone = 0.20,
+# both above min_relevance_score; region_boost (0.20) still ranks meaningfully.
+score_denominator: 3.0
+
+# Minimum keyword-match score (0-1) to keep a record. Any single topic match
+# clears this; zero matches (0.0) doesn't.
+min_relevance_score: 0.15
 
 # Known low-quality / "conference mill" organizers or keyword patterns to hard
 # exclude regardless of topic match. Seed list — refine as real digests reveal
@@ -315,7 +385,7 @@ excluded_keywords:
 # recipient comes only from the EMAIL_TO secret/env var. See .env.example
 # and README.md's setup checklist.
 email:
-  subject_template: "Conference & CFP Digest — {date}"
+  subject_template: "Free & Funded Research Opportunities — {date}"
 
 # Search source (Serper.dev search + Groq extraction) covering conferences
 # WikiCFP doesn't index. Started Malaysia-only per user request, since direct
@@ -354,7 +424,29 @@ email:
 # frequency, not a bug.
 search_api:
   enabled: true
-  max_queries_per_run: 14
+  # priority_queries (2026-10-13 redesign) run EVERY run, ahead of the
+  # rotating pool below — they search for free/funded opportunities
+  # directly, instead of finding CFPs first and hoping some are free. The
+  # rotating pool dropped 14 -> 4 per run to keep total Serper/Groq spend
+  # (and run time, under the 45-min CI timeout) about where it was.
+  priority_queries:
+    # Conferences offering travel grants / fee waivers / free registration
+    - '"student travel grant" call for papers energy conference 2027'
+    - '"travel grant" call for papers sustainability conference 2027 students'
+    - '"registration fee waiver" conference 2027 call for papers developing countries'
+    - '"no registration fee" conference 2027 call for papers energy OR sustainability'
+    - '"free registration" call for papers 2027 symposium sustainable development'
+    # New topics (ESG / SDG / economics & policy) with funding
+    - 'ESG conference 2027 call for papers "travel grant" OR "scholarship"'
+    - 'SDG conference 2027 call for papers "fee waiver" OR "travel support"'
+    - 'energy economics policy conference 2027 call for papers student scholarship'
+    # Journal calls with no publication fee (APC)
+    - '"no article processing charge" special issue call for papers energy policy 2027'
+    - 'diamond open access journal call for papers sustainability ESG special issue 2027'
+    # Standalone funding for the user's own situation (Malaysia -> Master's in Japan)
+    - 'Japan graduate student international conference presentation travel grant 2027 application'
+    - 'Malaysia conference 2027 call for papers "free registration" OR "no fee"'
+  max_queries_per_run: 4
   queries:
     # Malaysia universities (UM/UKM/USM/UPM/UTM etc.)
     - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers energy 2026"
@@ -446,3 +538,36 @@ search_api:
 # playwright isn't installed.
 um_event_system:
   enabled: true
+
+# Standalone funding programs (2026-10-13 redesign) — fetched directly every
+# run by tools/fetch_funding_programs.py, so deadlines stay fresh even for
+# evergreen programs. Every URL below was checked live from a script on
+# 2026-10-13. MDPI's own award pages (Sustainability/Energies/Climate travel
+# awards) were the obvious first choice but return 403 to scripted requests;
+# Terra Viva Grants mirrors those same awards (and many more) on a public,
+# robots.txt-permitted listing, so that's the route used instead.
+funding_programs:
+  enabled: true
+  # Single program pages: checked by extract_access.py like any other
+  # opportunity (fee/funding verdict + verbatim evidence quote), re-checked
+  # every RECHECK_PROGRAM_DAYS since their content changes each cycle.
+  # `topics` feed relevance scoring, since a program page's title alone
+  # rarely contains the topic words.
+  pages:
+    - name: "IEEE Power Electronics Society — Student Travel Grants"
+      url: "https://www.ieee-pels.org/membership/student-travel-grants/"
+      topics: [power electronics, energy systems]
+    - name: "IEEE PES General Meeting — Student Program (housing support)"
+      # Redirects to the current year's For Students page.
+      url: "https://pes-gm.org/?p=2878"
+      topics: [power systems, energy systems]
+  # Listing pages: each item parsed deterministically (no LLM) by
+  # fetch_funding_programs.parse_terraviva_listing(). Items must carry one
+  # of region_tags (eligibility) and none of exclude_tags.
+  listings:
+    - name: "Terra Viva Grants — travel & mobility"
+      url: "https://www.terravivagrants.org/tag/travel-mobility/"
+      pages: 2
+      region_tags: [worldwide, asia-pacific, south-asia, southeast-asia]
+      exclude_tags: [mediajournalism]
+

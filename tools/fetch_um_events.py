@@ -36,7 +36,7 @@ so this step is what confirms a real CFP and pulls
 submission_deadline/fee/travel info.
 
 That enrichment step costs a Groq request per candidate, so — mirroring
-llm_extract.py's MAX_RECORDS_PER_RUN reasoning — already-known event IDs
+extract_access.py's MAX_RECORDS_PER_RUN reasoning — already-known event IDs
 (checked against data/conferences_db.json) are skipped, and new ones are
 capped per run; the rest carry over to a future run.
 
