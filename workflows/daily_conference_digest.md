@@ -75,7 +75,7 @@ what to do next.
    fee waivers, free registration, ESG/SDG calls with funding, no-APC
    journal calls, Japan graduate travel grants). Then the older
    Malaysia/Japan/energy-society CFP pool rotates behind them through
-   `rotate_queries()` (`max_queries_per_run`, cut 14→4 on 2026-10-13 to
+   `rotate_queries()` (`max_queries_per_run`, cut 14→4→2 on 2026-10-13 to
    keep total spend about the same). Groq classifies each result page as
    `is_opportunity` plus `opportunity_type` (conference / journal_issue /
    funding_program) and extracts dates. It requires a paper deadline for a
@@ -98,6 +98,9 @@ what to do next.
      journalism fellowships are excluded. Items are funding by
      construction, so they are emitted already verified, with the
      money/award sentence as the evidence quote.
+   - The Kyoto University Foundation page (the user's university) is
+     Japanese, so `extract_access.py`'s link and snippet regexes include
+     Japanese terms (助成, 奨学, 旅費, 参加費 …).
 
 5. **`tools/normalize_records.py`**: maps raw WikiCFP items into the shared
    `ConferenceRecord` schema (`tools/common.py`). Other sources already

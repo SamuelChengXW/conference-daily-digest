@@ -50,7 +50,11 @@ jobs:
 
       - name: Run digest pipeline
         working-directory: tools
-        timeout-minutes: 45
+        timeout-minutes: 70
+        # Raised 45 -> 70 on 2026-10-13: the free & funded redesign added
+        # 17 every-run priority search queries + extract_access.py's
+        # subpage-following checks (own 15-min budget), all Groq-rate-limited
+        # (~4 calls/min on the free tier) on top of WikiCFP's 20-min budget.
         # timeout-minutes is an outer safety net, not the primary fix — see
         # fetch_wikicfp.py's WALL_CLOCK_BUDGET_SECONDS (2026-08-09: a real
         # run took 1h36m before being manually canceled, entirely inside

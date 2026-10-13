@@ -66,14 +66,18 @@ RECHECK_PROGRAM_DAYS = 30
 # after camera-ready and author-instructions pages used up earlier slots.
 STRONG_LINK_RE = re.compile(
     r"regist|fee|grant|travel|award|scholarship|financial[\s_-]?aid|bursar|waive|"
-    r"apc|funding|stipend",
+    r"apc|funding|stipend|"
+    # Japanese pages (e.g. Kyoto University Foundation): grant, scholarship,
+    # travel cost, participation fee, application guidelines.
+    r"助成|奨学|旅費|渡航|参加費|登録料|募集要項|支援",
     re.IGNORECASE,
 )
 WEAK_LINK_RE = re.compile(r"student|support|open[\s_-]?access|author|diversity|inclusion", re.IGNORECASE)
 SNIPPET_RE = re.compile(
     r"fee|registration|grant|travel|award|scholarship|financial aid|bursar|waive|"
     r"free|no charge|complimentary|apc|article processing|open access|stipend|"
-    r"funding|funded|sponsor|reimburse|discount|developing countr",
+    r"funding|funded|sponsor|reimburse|discount|developing countr|"
+    r"助成|奨学|旅費|渡航|参加費|登録料|無料|免除|募集期間|締切",
     re.IGNORECASE,
 )
 _WAIVER_RE = re.compile(r"waive|waiver|reduced|fee support|financial aid|scholarship", re.IGNORECASE)

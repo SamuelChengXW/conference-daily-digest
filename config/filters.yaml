@@ -428,7 +428,9 @@ search_api:
   # rotating pool below — they search for free/funded opportunities
   # directly, instead of finding CFPs first and hoping some are free. The
   # rotating pool dropped 14 -> 4 per run to keep total Serper/Groq spend
-  # (and run time, under the 45-min CI timeout) about where it was.
+  # (and run time) about where it was; dropped again 4 -> 2 when the
+  # priority list grew to 17 (2026-10-13), since each query can cost up to
+  # 3 Groq calls at ~4 calls/min on the free tier.
   priority_queries:
     # Conferences offering travel grants / fee waivers / free registration
     - '"student travel grant" call for papers energy conference 2027'
@@ -443,10 +445,22 @@ search_api:
     # Journal calls with no publication fee (APC)
     - '"no article processing charge" special issue call for papers energy policy 2027'
     - 'diamond open access journal call for papers sustainability ESG special issue 2027'
-    # Standalone funding for the user's own situation (Malaysia -> Master's in Japan)
-    - 'Japan graduate student international conference presentation travel grant 2027 application'
+    # Fully funded / sponsored participation, worldwide. Modelled on a real
+    # example the user gave (2026-10-13): the ASEAN Centre for Energy's
+    # ACCEPT scholarship for AICEE (covers conference fee + air travel for
+    # selected abstract authors). ACCEPT has no stable scholarship page to
+    # follow (aseanenergy.org's AICEE pages 404'd on 2026-10-13), so these
+    # are searched for instead.
+    - 'ACCEPT scholarship AICEE ASEAN Centre for Energy call for abstracts'
+    - '"scholarship" call for abstracts energy conference ASEAN OR Asia 2027 "air travel" OR "airfare"'
+    - '"fully funded" conference call for papers 2027 energy OR sustainability OR climate students'
+    - '"sponsored participation" OR "funded participation" call for abstracts 2027 energy policy OR sustainable development'
+    # Graduate travel grants, worldwide (the user asked not to limit this to
+    # Japan) plus their own university (Kyoto University, from Oct 2026).
+    - 'graduate student travel grant international conference presentation 2027 application open'
+    - 'Kyoto University graduate student international conference travel support 2027'
     - 'Malaysia conference 2027 call for papers "free registration" OR "no fee"'
-  max_queries_per_run: 4
+  max_queries_per_run: 2
   queries:
     # Malaysia universities (UM/UKM/USM/UPM/UTM etc.)
     - "site:utm.my OR site:um.edu.my OR site:ukm.my OR site:usm.my OR site:upm.edu.my call for papers energy 2026"
@@ -554,6 +568,15 @@ funding_programs:
   # `topics` feed relevance scoring, since a program page's title alone
   # rarely contains the topic words.
   pages:
+    # The user's own university (Master's from Oct 2026). Category D
+    # 国際研究集会発表助成 (international conference presentation grant,
+    # ~80 awards/yr, open to students with a supervisor's recommendation).
+    # Page is Japanese — extract_access's link/snippet regexes include
+    # Japanese terms for this. FY2026 window was 13-24 Apr 2026; the next
+    # one shows up once the page is updated (re-checked every 30 days).
+    - name: "Kyoto University Foundation — International Conference Presentation Grant (D 国際研究集会発表助成)"
+      url: "https://www.kyodai-zaidan.or.jp/promotion/index/"
+      topics: [energy systems, sustainability]
     - name: "IEEE Power Electronics Society — Student Travel Grants"
       url: "https://www.ieee-pels.org/membership/student-travel-grants/"
       topics: [power electronics, energy systems]
