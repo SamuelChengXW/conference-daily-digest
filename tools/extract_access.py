@@ -45,6 +45,10 @@ from bs4 import BeautifulSoup
 import llm_extract
 from common import ConferenceRecord, load_config, parse_iso_date, today
 
+# The verdict that decides what the user sees runs on the larger model,
+# which also has its own 200K-tokens/day free quota separate from the 20b
+# model used for discovery (fetch_search_api / fetch_um_events).
+ACCESS_MODEL = "openai/gpt-oss-120b"
 MAX_SUBPAGES = 3
 SNIPPET_RADIUS = 400
 MAX_SNIPPET_CHARS_PER_PAGE = 2000
@@ -290,6 +294,7 @@ def check_record(record: ConferenceRecord, api_key: str) -> None:
         api_key,
         f"Opportunity: {record.title}\nType: {record.opportunity_type}\n\n"
         f"Relevant excerpts from its official pages:\n\n{page_block}\n\n{INSTRUCTIONS}",
+        model=ACCESS_MODEL,
     )
     if not data:
         # Groq failure (rate limit/network) isn't a verdict — leave it for next run.
@@ -346,6 +351,10 @@ def run(records: list[ConferenceRecord], config: Optional[dict] = None) -> int:
     started = time.monotonic()
     attempted = 0
     for record in pending:
+        if llm_extract.model_exhausted(ACCESS_MODEL):
+            print(f"  {ACCESS_MODEL} daily quota spent — {len(pending) - attempted} "
+                  f"record(s) carry over to next run.")
+            break
         if time.monotonic() - started > WALL_CLOCK_BUDGET_SECONDS:
             print(f"  Wall-clock budget ({WALL_CLOCK_BUDGET_SECONDS // 60} min) reached — "
                   f"{len(pending) - attempted} record(s) carry over to next run.")

@@ -625,6 +625,26 @@ applying.
     Serper `tbs=qdr:m` (past month), falling back to an unfiltered search
     on an HTTP error.
 
+- **Second same-day run checked nothing: Groq's daily quota is per model
+  (2026-10-13).** The free tier allows 200K tokens/day for *each* model
+  (gpt-oss-20b, gpt-oss-120b; console.groq.com/docs/rate-limits). One full
+  run (~50 search extractions plus ~30 checks, all on 20b) uses most of
+  that. A second run the same day got only 429s, with Retry-After values
+  from 60s up to ~2,000s, and every check was deferred. Fixes:
+  - `extract_access.py` now runs on **gpt-oss-120b** (`ACCESS_MODEL`), a
+    separate quota and the stronger model for the verdict users act on.
+    Discovery stays on 20b.
+  - `llm_extract.call_groq()` marks a model exhausted on the first
+    Retry-After above the 60s cap, and returns None for it without calling
+    the API for the rest of the run. `fetch_search_api` and
+    `extract_access` both stop early when their model is exhausted.
+  - `fetch_search_api` skips pages already in the DB before calling Groq,
+    since priority queries return the same pages week to week.
+
+  **Lesson: don't fire repeated manual runs on the same day.** Space
+  verification runs about 24h apart, or expect the second one to be
+  starved.
+
 ## Deferred (not built yet — revisit after a stretch of clean runs)
 
 `fetch_search_api.py` (Serper.dev + LLM extraction, Malaysia-focused) and

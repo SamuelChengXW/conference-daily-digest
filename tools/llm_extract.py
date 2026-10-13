@@ -85,13 +85,29 @@ def fetch_page_text(url: str) -> Optional[str]:
     return text[:MAX_PAGE_CHARS] if text else None
 
 
-def call_groq(api_key: str, user_content: str) -> Optional[dict]:
+# Free-tier quotas are per model: 200K tokens/day each for gpt-oss-20b and
+# gpt-oss-120b (console.groq.com/docs/rate-limits, checked 2026-10-13). One
+# full run uses most of a single model's daily budget, so a second run the
+# same day (2026-10-13) got nothing but 429s with Retry-After up to ~35 min.
+# A Retry-After past MAX_RATE_LIMIT_WAIT is treated as "this model's daily
+# quota is spent": the model goes in here and every later call to it this
+# run returns None immediately instead of burning time on more 429s.
+_exhausted_models: set[str] = set()
+
+
+def model_exhausted(model: str = MODEL) -> bool:
+    return model in _exhausted_models
+
+
+def call_groq(api_key: str, user_content: str, model: str = MODEL) -> Optional[dict]:
     """POST to Groq's chat completions endpoint with JSON-mode enabled.
     Returns the parsed JSON dict, or None on any failure (network, non-2xx
-    after retries exhausted, or malformed JSON in the response) — callers
-    treat that as "couldn't determine, use the not-stated default" rather
-    than raising.
+    after retries exhausted, malformed JSON in the response, or this model's
+    quota already found exhausted this run) — callers treat that as
+    "couldn't determine" rather than raising.
     """
+    if model in _exhausted_models:
+        return None
     resp = None
     for attempt in range(1, MAX_RETRIES + 1):
         try:
@@ -99,7 +115,7 @@ def call_groq(api_key: str, user_content: str) -> Optional[dict]:
                 GROQ_URL,
                 headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
                 json={
-                    "model": MODEL,
+                    "model": model,
                     "messages": [{"role": "user", "content": user_content}],
                     "response_format": {"type": "json_object"},
                     "temperature": 0.2,
@@ -113,9 +129,10 @@ def call_groq(api_key: str, user_content: str) -> Optional[dict]:
         if resp.status_code == 429:
             wait_s = int(resp.headers.get("retry-after", RATE_LIMIT_DEFAULT_WAIT))
             if wait_s > MAX_RATE_LIMIT_WAIT:
-                print(f"  WARNING: Groq rate-limited (429) with an unusually long "
-                      f"Retry-After ({wait_s}s > {MAX_RATE_LIMIT_WAIT}s cap) — skipping "
-                      f"rather than blocking this long.")
+                _exhausted_models.add(model)
+                print(f"  WARNING: Groq rate-limited (429) on {model} with Retry-After "
+                      f"{wait_s}s (> {MAX_RATE_LIMIT_WAIT}s cap) — treating its daily quota "
+                      f"as spent; no more {model} calls this run.")
                 return None
             if attempt < MAX_RETRIES:
                 print(f"  Groq rate-limited (429) — waiting {wait_s}s "

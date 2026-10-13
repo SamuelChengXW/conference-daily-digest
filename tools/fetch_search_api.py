@@ -50,7 +50,7 @@ from typing import Optional
 import requests
 from dotenv import load_dotenv
 
-from common import ConferenceRecord, PROJECT_ROOT, load_config, today
+from common import ConferenceRecord, DB_PATH, PROJECT_ROOT, load_config, read_json, today
 import llm_extract
 
 load_dotenv(PROJECT_ROOT / ".env")
@@ -200,9 +200,19 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
         search_cfg.get("queries", []), search_cfg.get("max_queries_per_run", 8)
     )
 
+    # Pages already stored are skipped before spending a Groq call on them —
+    # every-run priority queries keep returning the same pages week to week,
+    # and Groq's free tier is 200K tokens/day per model (see llm_extract).
+    known_ids = {
+        v["source_id"] for v in read_json(DB_PATH, default={}).values()
+        if v.get("source") == "search_malaysia"
+    }
     seen_urls: set[str] = set()
     records: list[ConferenceRecord] = []
     for query in queries:
+        if llm_extract.model_exhausted():
+            print("  Groq daily quota spent — skipping remaining search queries this run.")
+            break
         try:
             tbs = PRIORITY_TBS if query in priority else None
             try:
@@ -221,6 +231,8 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
             if not url or url in seen_urls:
                 continue
             seen_urls.add(url)
+            if hashlib.sha1(url.encode()).hexdigest()[:16] in known_ids:
+                continue
 
             record = extract_conference_record(result, groq_key)
             if record:
