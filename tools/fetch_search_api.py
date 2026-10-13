@@ -82,11 +82,19 @@ EXTRACTION_INSTRUCTIONS = (
 )
 
 
-def search(query: str, api_key: str) -> list[dict]:
+# Google time filter for priority_queries: past month only. The first live
+# run (2026-10-13) found 16 records from those queries, but most were
+# last-cycle pages whose deadlines had already passed (e.g. AICEE x ACCEPT
+# 2026, closed 16 Aug) — "2027" in the query text alone doesn't keep
+# Google from ranking older pages first.
+PRIORITY_TBS = "qdr:m"
+
+
+def search(query: str, api_key: str, tbs: Optional[str] = None) -> list[dict]:
     resp = requests.post(
         SERPER_URL,
         headers={"X-API-KEY": api_key, "Content-Type": "application/json"},
-        json={"q": query},
+        json={"q": query, **({"tbs": tbs} if tbs else {})},
         timeout=20,
     )
     resp.raise_for_status()
@@ -187,7 +195,8 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
 
     # priority_queries (free/funded-first searches) always run; the older
     # rotating pool fills in behind them.
-    queries = list(search_cfg.get("priority_queries", [])) + rotate_queries(
+    priority = list(search_cfg.get("priority_queries", []))
+    queries = priority + rotate_queries(
         search_cfg.get("queries", []), search_cfg.get("max_queries_per_run", 8)
     )
 
@@ -195,7 +204,14 @@ def run(config: Optional[dict] = None) -> list[ConferenceRecord]:
     records: list[ConferenceRecord] = []
     for query in queries:
         try:
-            results = search(query, serper_key)
+            tbs = PRIORITY_TBS if query in priority else None
+            try:
+                results = search(query, serper_key, tbs)
+            except requests.exceptions.HTTPError:
+                if not tbs:
+                    raise
+                # Never lose a priority query to the date filter itself.
+                results = search(query, serper_key)
         except requests.exceptions.RequestException as e:
             print(f"  WARNING: Serper search failed for query '{query}' ({type(e).__name__}) — skipping.")
             continue

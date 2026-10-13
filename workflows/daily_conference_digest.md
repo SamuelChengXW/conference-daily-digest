@@ -132,7 +132,9 @@ what to do next.
       downgrade to `unknown`/not funded.
    5. Cross-check a "free" verdict against a currency-amount regex.
 
-   Capped at 30 records and 15 min per run; the rest carry over. A Groq
+   Capped at 45 records and 15 min per run; the rest carry over. Order:
+   program pages, then search finds, then UM, then WikiCFP
+   (`SOURCE_PRIORITY`). A Groq
    failure leaves the record unchecked (not "unknown"), so it is retried.
    "Unknown" results are re-checked after 45 days.
 
@@ -603,6 +605,25 @@ applying.
     rejected as noisy. The user asked for sustainability coverage, so they
     are now in, on the reasoning that the free/funded gate keeps the cost
     of a false-positive topic match low.
+
+- **First live run of the redesign (2026-10-13): 2 entries shown, and
+  why.** The run succeeded (41 min, email sent, legacy Sheet tabs
+  migrated), but it surfaced three problems:
+  - `extract_access.py` sorted its pending queue by relevance alone, so all
+    30 checks went to high-scoring WikiCFP "--EI"-style listings (28 came
+    back paid or unknown). Meanwhile 16 search finds and the program pages
+    went unchecked. Fixed with `SOURCE_PRIORITY` ordering, and the cap was
+    raised 30→45 (30 checks took ~8.5 min).
+  - Funding programs scored 0.0 on topics, because a title like "Travel
+    Grants" or "AICEE x ACCEPT Scholarship" names no field, so they could
+    never pass `min_relevance_score`. Fixed by
+    `filter_and_rank.passes_relevance()`: search-found and page-type
+    programs are exempt. Terra Viva listing items keep the gate.
+  - Most priority-query hits were last-cycle pages with passed deadlines.
+    For example, the AICEE x ACCEPT scholarship the user pointed to was
+    found, but its 2026 call closed on 16 Aug. Priority queries now use
+    Serper `tbs=qdr:m` (past month), falling back to an unfiltered search
+    on an HTTP error.
 
 ## Deferred (not built yet — revisit after a stretch of clean runs)
 

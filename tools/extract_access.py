@@ -50,7 +50,9 @@ SNIPPET_RADIUS = 400
 MAX_SNIPPET_CHARS_PER_PAGE = 2000
 MAX_TOTAL_CHARS = 5000
 MIN_QUOTE_CHARS = 12
-MAX_RECORDS_PER_RUN = 30
+MAX_RECORDS_PER_RUN = 45  # 30 checks took ~8.5 min on the first live run;
+# 45 fits inside WALL_CLOCK_BUDGET_SECONDS and the 70-min CI timeout.
+SOURCE_PRIORITY = {"funding_page": 0, "search_malaysia": 1, "um_event_system": 2, "wikicfp": 3}
 WALL_CLOCK_BUDGET_SECONDS = 15 * 60
 # Registration pages often go up only a few months before an event, so an
 # "unknown" verdict is worth re-checking later rather than trusting forever.
@@ -325,11 +327,17 @@ def run(records: list[ConferenceRecord], config: Optional[dict] = None) -> int:
         r for r in records
         if not r.excluded
         and r.user_status != "Dismissed"
-        and r.relevance_score >= min_score
+        and filter_and_rank.passes_relevance(r, min_score)
         and filter_and_rank.is_in_window(r, window_days)
         and needs_check(r)
     ]
-    pending.sort(key=lambda r: (-r.relevance_score, filter_and_rank.effective_deadline(r) or "9999-99-99"))
+    # Likeliest-to-be-free/funded first: program pages and search finds
+    # (from the free/funded priority queries) before WikiCFP/UM candidates.
+    # The first live run (2026-10-13) sorted by relevance alone and spent
+    # all 30 checks on high-scoring WikiCFP conference-mill listings (28
+    # paid/unknown) while 16 search finds went unchecked.
+    pending.sort(key=lambda r: (SOURCE_PRIORITY.get(r.source, 9), -r.relevance_score,
+                                filter_and_rank.effective_deadline(r) or "9999-99-99"))
     if len(pending) > MAX_RECORDS_PER_RUN:
         print(f"  {len(pending)} record(s) pending cost/funding check — doing the "
               f"{MAX_RECORDS_PER_RUN} most relevant this run, rest carry over.")
@@ -345,7 +353,10 @@ def run(records: list[ConferenceRecord], config: Optional[dict] = None) -> int:
         print(f"  checking: {record.title[:70]}")
         check_record(record, api_key)
         attempted += 1
-        print(f"    -> {record.cost_status}{' + funding' if record.funding_available else ''}")
+        if record.access_checked is None:
+            print("    -> deferred (Groq call failed; retried next run)")
+        else:
+            print(f"    -> {record.cost_status}{' + funding' if record.funding_available else ''}")
     return attempted
 
 

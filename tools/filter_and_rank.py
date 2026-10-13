@@ -67,6 +67,19 @@ def is_eligible(record: ConferenceRecord) -> bool:
     return record.cost_status in {"free", "waivable"} or record.funding_available
 
 
+def passes_relevance(record: ConferenceRecord, min_score: float) -> bool:
+    """Topic relevance gate. Funding programs found by search or listed as
+    single program pages are exempt: a travel grant is usually open to any
+    field, and its title ("Travel Grants", "AICEE x ACCEPT Scholarship")
+    rarely names one — the first live run (2026-10-13) scored all of them
+    0.0. Terra Viva listing items keep the gate, since that listing spans
+    every field (ocean, insect welfare, journalism...).
+    """
+    if record.opportunity_type == "funding_program" and record.source != "funding_listing":
+        return True
+    return record.relevance_score >= min_score
+
+
 def rank(records: list[ConferenceRecord]) -> list[ConferenceRecord]:
     return sorted(records, key=lambda r: effective_deadline(r) or "9999-99-99")
 
@@ -97,7 +110,7 @@ def run(records: Optional[list[ConferenceRecord]] = None, config: Optional[dict]
     filtered = [
         r for r in records
         if not r.excluded
-        and r.relevance_score >= min_score
+        and passes_relevance(r, min_score)
         and r.user_status != "Dismissed"
         and is_in_window(r, window_days)
         and is_eligible(r)
